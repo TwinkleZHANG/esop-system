@@ -1,0 +1,279 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== 基础设置 ====================
+
+/// 激励计划
+model Plan {
+  id                    String          @id @default(cuid())
+  title                 String          // 计划标题
+  type                  PlanType        // RSU / Option / 虚拟股权 / LP份额
+  applicableJurisdiction Jurisdiction    // 适用法域 HK/CN
+  poolSize              Decimal         @db.Decimal(20, 4) // 激励池规模
+  effectiveDate         DateTime        // 生效日期
+  boardApprovalId       String?         // 董事会决议文件编号
+  status                PlanStatus      @default(DRAFT)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  
+  grants                Grant[]
+  
+  @@map("plans")
+}
+
+/// 员工档案
+model Employee {
+  id                  String        @id @default(cuid())
+  employeeId          String        @unique // 内部员工编号
+  name                String
+  legalIdentity       LegalIdentity // 内地居民/香港居民/海外
+  employmentEntity    String?       // 用工主体
+  taxJurisdiction     Jurisdiction  // 税务居民地
+  bankAccountType     BankAccountType? // 境内/境外
+  status              EmployeeStatus @default(ACTIVE)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  
+  grants              Grant[]
+  
+  @@map("employees")
+}
+
+/// 持股实体
+model HoldingEntity {
+  id              String      @id @default(cuid())
+  name            String
+  type            String      // 实股/LP份额等
+  jurisdiction    Jurisdiction
+  description     String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@map("holding_entities")
+}
+
+/// 估值记录
+model Valuation {
+  id              String      @id @default(cuid())
+  date            DateTime
+  fmv             Decimal     @db.Decimal(20, 4) // 公允价值
+  source          String?     // 估值来源
+  description     String?
+  createdAt       DateTime    @default(now())
+  
+  @@map("valuations")
+}
+
+// ==================== 授予管理 ====================
+
+/// 授予记录
+model Grant {
+  id              String        @id @default(cuid())
+  planId          String
+  plan            Plan          @relation(fields: [planId], references: [id])
+  employeeId      String
+  employee        Employee      @relation(fields: [employeeId], references: [id])
+  
+  quantity        Decimal       @db.Decimal(20, 4) // 授予数量
+  strikePrice     Decimal?      @db.Decimal(20, 4) // 行权价 (Option)
+  grantDate       DateTime      // 授予日期
+  vestingStartDate DateTime     // 归属开始日期
+  vestingEndDate  DateTime?     // 归属结束日期
+  
+  status          GrantStatus   @default(GRANTED)
+  type            PlanType      // 冗余字段，方便查询
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  vestingEvents   VestingEvent[]
+  taxEvents       TaxEvent[]
+  
+  @@map("grants")
+}
+
+/// 归属事件
+model VestingEvent {
+  id              String      @id @default(cuid())
+  grantId         String
+  grant           Grant       @relation(fields: [grantId], references: [id])
+  
+  vestDate        DateTime    // 归属日期
+  quantity        Decimal     @db.Decimal(20, 4) // 本次归属数量
+  cumulativeQty   Decimal     @db.Decimal(20, 4) // 累计归属数量
+  status          VestingStatus @default(PENDING)
+  
+  createdAt       DateTime    @default(now())
+  
+  @@map("vesting_events")
+}
+
+// ==================== 税务事件 ====================
+
+/// 税务事件
+model TaxEvent {
+  id              String        @id @default(cuid())
+  grantId         String
+  grant           Grant         @relation(fields: [grantId], references: [id])
+  
+  eventType       TaxEventType  // VESTING_TAX / EXERCISE_TAX
+  triggerDate     DateTime      // 触发日期
+  quantity        Decimal       @db.Decimal(20, 4) // 涉及数量
+  taxableAmount   Decimal?      @db.Decimal(20, 4) // 应税金额
+  taxAmount       Decimal?      @db.Decimal(20, 4) // 税额
+  
+  status          TaxEventStatus @default(TRIGGERED)
+  
+  // 第三方算税信息
+  exportFileUrl   String?       // 导出文件URL
+  importFileUrl   String?       // 导入文件URL
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@map("tax_events")
+}
+
+// ==================== 资产管理 ====================
+
+/// 资产持仓
+model AssetPosition {
+  id              String        @id @default(cuid())
+  employeeId      String
+  holdingEntityId String?
+  
+  assetType       AssetType     // 实股/LP份额等
+  quantity        Decimal       @db.Decimal(20, 4)
+  costBasis       Decimal?      @db.Decimal(20, 4) // 成本基础
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@map("asset_positions")
+}
+
+/// 资产流水
+model AssetTransaction {
+  id              String            @id @default(cuid())
+  positionId      String
+  
+  txType          AssetTxType       // 发行/交割/回购等
+  quantity        Decimal           @db.Decimal(20, 4)
+  price           Decimal?          @db.Decimal(20, 4)
+  
+  relatedGrantId  String?
+  relatedTaxEventId String?
+  
+  txDate          DateTime
+  createdAt       DateTime          @default(now())
+  
+  @@map("asset_transactions")
+}
+
+// ==================== 审计日志 ====================
+
+model AuditLog {
+  id              String      @id @default(cuid())
+  entityType      String      // Plan / Grant / TaxEvent 等
+  entityId        String
+  action          String      // CREATE / UPDATE / STATUS_CHANGE
+  oldValue        Json?
+  newValue        Json?
+  
+  operatorId      String?     // 操作人ID
+  operatorRole    String?     // 操作人角色
+  
+  createdAt       DateTime    @default(now())
+  
+  @@map("audit_logs")
+}
+
+// ==================== 枚举 ====================
+
+enum PlanType {
+  RSU
+  OPTION
+  VIRTUAL_SHARE
+  LP_SHARE
+}
+
+enum Jurisdiction {
+  HK
+  CN
+  OVERSEAS
+}
+
+enum PlanStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+enum LegalIdentity {
+  CN_RESIDENT
+  HK_RESIDENT
+  OVERSEAS_RESIDENT
+}
+
+enum BankAccountType {
+  DOMESTIC
+  OVERSEAS
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  TERMINATED
+  ON_LEAVE
+}
+
+enum GrantStatus {
+  GRANTED      // 已授予
+  VESTING      // 归属中
+  VESTED       // 已归属
+  EXERCISED    // 已行权 (Option)
+  SETTLED      // 已交割
+  CANCELLED    // 已取消
+  FORFEITED    // 已失效
+}
+
+enum VestingStatus {
+  PENDING
+  VESTED
+  CANCELLED
+}
+
+enum TaxEventType {
+  VESTING_TAX    // 归属税务
+  EXERCISE_TAX   // 行权税务
+}
+
+enum TaxEventStatus {
+  TRIGGERED      // 已触发
+  DATA_EXPORTED  // 数据已导出
+  DATA_IMPORTED  // 数据已导入
+  TAX_CONFIRMED  // 税务已确认
+  TAX_PAID       // 税款已缴纳
+}
+
+enum AssetType {
+  COMMON_SHARE
+  PREFERRED_SHARE
+  LP_SHARE
+  VIRTUAL_SHARE
+}
+
+enum AssetTxType {
+  ISSUANCE
+  SETTLEMENT
+  REPURCHASE
+  TRANSFER
+}
