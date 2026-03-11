@@ -88,7 +88,7 @@ model Grant {
   vestingStartDate DateTime     // 归属开始日期
   vestingEndDate  DateTime?     // 归属结束日期
   
-  status          GrantStatus   @default(GRANTED)
+  status          GrantStatus   @default(DRAFT)
   type            PlanType      // 冗余字段，方便查询
   
   createdAt       DateTime      @default(now())
@@ -235,6 +235,7 @@ enum EmployeeStatus {
 }
 
 enum GrantStatus {
+  DRAFT        // 草稿
   GRANTED      // 已授予
   VESTING      // 归属中
   VESTED       // 已归属

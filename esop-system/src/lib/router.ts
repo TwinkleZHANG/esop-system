@@ -225,7 +225,7 @@ export const grantRouter = router({
           grantDate: input.grantDate,
           vestingStartDate: input.vestingStartDate,
           type: plan.type,
-          status: GrantStatus.GRANTED,
+          status: GrantStatus.DRAFT,
         },
       })
       

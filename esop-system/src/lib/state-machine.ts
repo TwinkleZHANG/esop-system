@@ -21,6 +21,13 @@ export interface StateTransition {
 // RSU 状态流转
 export const RSU_TRANSITIONS: StateTransition[] = [
   {
+    from: 'DRAFT',
+    to: 'GRANTED',
+    action: '正式授予',
+    allowedRoles: ['HR', 'ADMIN'],
+    requiresApproval: true,
+  },
+  {
     from: 'GRANTED',
     to: 'VESTING',
     action: '开始归属',
@@ -64,6 +71,13 @@ export const RSU_TRANSITIONS: StateTransition[] = [
 
 // Option 状态流转
 export const OPTION_TRANSITIONS: StateTransition[] = [
+  {
+    from: 'DRAFT',
+    to: 'GRANTED',
+    action: '正式授予',
+    allowedRoles: ['HR', 'ADMIN'],
+    requiresApproval: true,
+  },
   {
     from: 'GRANTED',
     to: 'VESTING',
@@ -147,6 +161,11 @@ export function isValidTransition(
  * 获取状态显示信息
  */
 export const STATUS_INFO: Record<GrantStatus, { label: string; color: string; description: string }> = {
+  DRAFT: {
+    label: '草稿',
+    color: 'gray',
+    description: '授予草稿，等待正式授予',
+  },
   GRANTED: {
     label: '已授予',
     color: 'blue',

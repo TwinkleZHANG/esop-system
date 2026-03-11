@@ -12,6 +12,15 @@ const prisma = new PrismaClient({ adapter })
 async function main() {
   console.log('🌱 开始填充示例数据...')
 
+  // 清理现有数据
+  await prisma.vestingEvent.deleteMany()
+  await prisma.taxEvent.deleteMany()
+  await prisma.grant.deleteMany()
+  await prisma.employee.deleteMany()
+  await prisma.plan.deleteMany()
+  await prisma.valuation.deleteMany()
+  await prisma.holdingEntity.deleteMany()
+
   // 创建示例激励计划
   const plan1 = await prisma.plan.create({
     data: {
@@ -96,7 +105,126 @@ async function main() {
   })
   console.log('✅ 创建持股实体:', holdingEntity.name)
 
+  // 创建示例授予记录 - 展示不同状态
+  // Grant 1: DRAFT - 草稿状态
+  const grant1 = await prisma.grant.create({
+    data: {
+      planId: plan1.id,
+      employeeId: employees[0].id,
+      quantity: 10000,
+      grantDate: new Date('2024-06-01'),
+      vestingStartDate: new Date('2024-06-01'),
+      type: 'RSU',
+      status: 'DRAFT',
+    },
+  })
+  console.log('✅ 创建授予 (DRAFT):', grant1.id.slice(-6))
+
+  // Grant 2: VESTING - 归属中
+  const grant2 = await prisma.grant.create({
+    data: {
+      planId: plan1.id,
+      employeeId: employees[1].id,
+      quantity: 20000,
+      grantDate: new Date('2024-01-01'),
+      vestingStartDate: new Date('2024-01-01'),
+      type: 'RSU',
+      status: 'VESTING',
+    },
+  })
+  // 为 VESTING 状态创建归属事件
+  await prisma.vestingEvent.create({
+    data: {
+      grantId: grant2.id,
+      vestDate: new Date('2025-01-01'),
+      quantity: 5000,
+      cumulativeQty: 5000,
+      status: 'VESTED',
+    },
+  })
+  await prisma.vestingEvent.create({
+    data: {
+      grantId: grant2.id,
+      vestDate: new Date('2026-01-01'),
+      quantity: 5000,
+      cumulativeQty: 10000,
+      status: 'PENDING',
+    },
+  })
+  console.log('✅ 创建授予 (VESTING):', grant2.id.slice(-6))
+
+  // Grant 3: VESTED - 已归属（等待交割）
+  const grant3 = await prisma.grant.create({
+    data: {
+      planId: plan2.id,
+      employeeId: employees[2].id,
+      quantity: 15000,
+      strikePrice: 5.00,
+      grantDate: new Date('2023-01-01'),
+      vestingStartDate: new Date('2023-01-01'),
+      type: 'OPTION',
+      status: 'VESTED',
+    },
+  })
+  await prisma.vestingEvent.create({
+    data: {
+      grantId: grant3.id,
+      vestDate: new Date('2024-01-01'),
+      quantity: 15000,
+      cumulativeQty: 15000,
+      status: 'VESTED',
+    },
+  })
+  // 已归属触发税务事件
+  await prisma.taxEvent.create({
+    data: {
+      grantId: grant3.id,
+      eventType: 'EXERCISE_TAX',
+      triggerDate: new Date('2024-06-01'),
+      quantity: 15000,
+      taxableAmount: 82500, // 15000 * (10.5 - 5.0)
+      taxAmount: 20625,
+      status: 'TRIGGERED',
+    },
+  })
+  console.log('✅ 创建授予 (VESTED):', grant3.id.slice(-6))
+
+  // Grant 4: SETTLED - 已交割
+  const grant4 = await prisma.grant.create({
+    data: {
+      planId: plan1.id,
+      employeeId: employees[0].id,
+      quantity: 8000,
+      grantDate: new Date('2022-01-01'),
+      vestingStartDate: new Date('2022-01-01'),
+      type: 'RSU',
+      status: 'SETTLED',
+    },
+  })
+  await prisma.vestingEvent.create({
+    data: {
+      grantId: grant4.id,
+      vestDate: new Date('2023-01-01'),
+      quantity: 8000,
+      cumulativeQty: 8000,
+      status: 'VESTED',
+    },
+  })
+  await prisma.taxEvent.create({
+    data: {
+      grantId: grant4.id,
+      eventType: 'VESTING_TAX',
+      triggerDate: new Date('2023-01-01'),
+      quantity: 8000,
+      taxableAmount: 84000,
+      taxAmount: 16800,
+      status: 'TAX_PAID',
+    },
+  })
+  console.log('✅ 创建授予 (SETTLED):', grant4.id.slice(-6))
+
   console.log('🎉 示例数据填充完成！')
+  console.log('📊 授予状态分布: DRAFT=1, VESTING=1, VESTED=1, SETTLED=1')
 }
 
 main()
