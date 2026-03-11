@@ -1,6 +1,13 @@
-import { PrismaClient, PlanType, Jurisdiction, PlanStatus, LegalIdentity, EmployeeStatus } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
+import { Pool } from 'pg'
+import 'dotenv/config'
 
-const prisma = new PrismaClient()
+const connectionString = process.env.DATABASE_URL!
+
+const pool = new Pool({ connectionString })
+const adapter = new PrismaPg(pool)
+const prisma = new PrismaClient({ adapter })
 
 async function main() {
   console.log('🌱 开始填充示例数据...')
@@ -9,12 +16,12 @@ async function main() {
   const plan1 = await prisma.plan.create({
     data: {
       title: '2024年 RSU 激励计划',
-      type: PlanType.RSU,
-      applicableJurisdiction: Jurisdiction.HK,
+      type: 'RSU',
+      applicableJurisdiction: 'HK',
       poolSize: 1000000,
       effectiveDate: new Date('2024-01-01'),
       boardApprovalId: 'BR-2024-001',
-      status: PlanStatus.ACTIVE,
+      status: 'ACTIVE',
     },
   })
   console.log('✅ 创建计划:', plan1.title)
@@ -22,12 +29,12 @@ async function main() {
   const plan2 = await prisma.plan.create({
     data: {
       title: '2024年 Option 激励计划',
-      type: PlanType.OPTION,
-      applicableJurisdiction: Jurisdiction.CN,
+      type: 'OPTION',
+      applicableJurisdiction: 'CN',
       poolSize: 500000,
       effectiveDate: new Date('2024-01-01'),
       boardApprovalId: 'BR-2024-002',
-      status: PlanStatus.ACTIVE,
+      status: 'ACTIVE',
     },
   })
   console.log('✅ 创建计划:', plan2.title)
@@ -38,30 +45,30 @@ async function main() {
       data: {
         employeeId: 'EMP001',
         name: '张三',
-        legalIdentity: LegalIdentity.CN_RESIDENT,
-        taxJurisdiction: Jurisdiction.CN,
+        legalIdentity: 'CN_RESIDENT',
+        taxJurisdiction: 'CN',
         employmentEntity: '北京科技有限公司',
-        status: EmployeeStatus.ACTIVE,
+        status: 'ACTIVE',
       },
     }),
     prisma.employee.create({
       data: {
         employeeId: 'EMP002',
         name: '李四',
-        legalIdentity: LegalIdentity.HK_RESIDENT,
-        taxJurisdiction: Jurisdiction.HK,
+        legalIdentity: 'HK_RESIDENT',
+        taxJurisdiction: 'HK',
         employmentEntity: 'Hong Kong Tech Ltd',
-        status: EmployeeStatus.ACTIVE,
+        status: 'ACTIVE',
       },
     }),
     prisma.employee.create({
       data: {
         employeeId: 'EMP003',
         name: '王五',
-        legalIdentity: LegalIdentity.CN_RESIDENT,
-        taxJurisdiction: Jurisdiction.CN,
+        legalIdentity: 'CN_RESIDENT',
+        taxJurisdiction: 'CN',
         employmentEntity: '北京科技有限公司',
-        status: EmployeeStatus.ACTIVE,
+        status: 'ACTIVE',
       },
     }),
   ])
@@ -83,7 +90,7 @@ async function main() {
     data: {
       name: '员工持股平台合伙企业（有限合伙）',
       type: 'LP份额',
-      jurisdiction: Jurisdiction.CN,
+      jurisdiction: 'CN',
       description: '用于员工股权激励的持股平台',
     },
   })
@@ -99,4 +106,5 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect()
+    await pool.end()
   })
