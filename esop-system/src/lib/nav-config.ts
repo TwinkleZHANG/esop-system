@@ -4,34 +4,21 @@ import { useEffect, useState } from 'react'
 import type { UserRole } from '@/components/RoleSwitcher'
 
 const ROLE_NAV_CONFIG: Record<UserRole, { path: string; label: string }[]> = {
-  HR: [
-    { path: '/', label: '首页' },
+  ADMIN_CREATE: [
     { path: '/admin', label: '管理后台' },
-    { path: '/employee', label: '员工视图' },
+    { path: '/employee', label: '我的权益' },
   ],
-  FINANCE: [
-    { path: '/', label: '首页' },
-    { path: '/admin', label: '财务工作台' },
-    { path: '/employee', label: '员工视图' },
-  ],
-  LEGAL: [
-    { path: '/', label: '首页' },
-    { path: '/admin', label: '法务工作台' },
-    { path: '/employee', label: '员工视图' },
-  ],
-  AUDITOR: [
-    { path: '/', label: '首页' },
-    { path: '/admin', label: '审计工作台' },
-    { path: '/employee', label: '员工视图' },
+  ADMIN_APPROVE: [
+    { path: '/admin', label: '管理后台' },
+    { path: '/employee', label: '我的权益' },
   ],
   EMPLOYEE: [
-    { path: '/', label: '首页' },
     { path: '/employee', label: '我的权益' },
   ],
 }
 
 export function useNavRole(): UserRole {
-  const [role, setRole] = useState<UserRole>('HR')
+  const [role, setRole] = useState<UserRole>('ADMIN_CREATE')
 
   useEffect(() => {
     const savedRole = localStorage.getItem('userRole') as UserRole | null
@@ -54,5 +41,5 @@ export function useNavRole(): UserRole {
 }
 
 export function getNavItems(role: UserRole) {
-  return ROLE_NAV_CONFIG[role] || ROLE_NAV_CONFIG.HR
+  return ROLE_NAV_CONFIG[role] || ROLE_NAV_CONFIG.ADMIN_CREATE
 }

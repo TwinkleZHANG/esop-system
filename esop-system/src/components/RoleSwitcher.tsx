@@ -2,14 +2,12 @@
 
 import { useEffect, useState } from 'react'
 
-export type UserRole = 'HR' | 'FINANCE' | 'LEGAL' | 'AUDITOR' | 'EMPLOYEE'
+export type UserRole = 'ADMIN_CREATE' | 'ADMIN_APPROVE' | 'EMPLOYEE'
 
 const ROLE_INFO: Record<UserRole, { label: string; icon: string; description: string }> = {
-  HR: { label: 'HR 管理员', icon: '👥', description: '计划管理、人员管理、授予操作' },
-  FINANCE: { label: '财务/税务', icon: '💰', description: '税务事件处理、估值录入' },
-  LEGAL: { label: '法务/合规', icon: '⚖️', description: '审批、模板审核' },
-  AUDITOR: { label: '审计', icon: '📑', description: '只读：审计日志、证据包导出' },
-  EMPLOYEE: { label: '员工', icon: '👤', description: '只读：个人权益视图' },
+  ADMIN_CREATE: { label: '管理员（创建）', icon: '✏️', description: '创建激励计划、员工档案、授予记录' },
+  ADMIN_APPROVE: { label: '管理员（审批）', icon: '✅', description: '审批激励计划和授予申请' },
+  EMPLOYEE: { label: '员工', icon: '👤', description: '查看个人权益' },
 }
 
 interface RoleSwitcherProps {
@@ -17,7 +15,7 @@ interface RoleSwitcherProps {
 }
 
 export function RoleSwitcher({ onRoleChange }: RoleSwitcherProps) {
-  const [role, setRole] = useState<UserRole>('HR')
+  const [role, setRole] = useState<UserRole>('ADMIN_CREATE')
   const [isOpen, setIsOpen] = useState(false)
 
   useEffect(() => {
@@ -76,7 +74,7 @@ export function RoleSwitcher({ onRoleChange }: RoleSwitcherProps) {
 }
 
 export function useUserRole(): UserRole {
-  const [role, setRole] = useState<UserRole>('HR')
+  const [role, setRole] = useState<UserRole>('ADMIN_CREATE')
 
   useEffect(() => {
     const savedRole = localStorage.getItem('userRole') as UserRole | null
