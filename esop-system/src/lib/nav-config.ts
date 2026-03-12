@@ -6,11 +6,9 @@ import type { UserRole } from '@/components/RoleSwitcher'
 const ROLE_NAV_CONFIG: Record<UserRole, { path: string; label: string }[]> = {
   ADMIN_CREATE: [
     { path: '/admin', label: '管理后台' },
-    { path: '/employee', label: '我的权益' },
   ],
   ADMIN_APPROVE: [
     { path: '/admin', label: '管理后台' },
-    { path: '/employee', label: '我的权益' },
   ],
   EMPLOYEE: [
     { path: '/employee', label: '我的权益' },
