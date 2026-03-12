@@ -72,15 +72,6 @@ export default function AdminLayout({
             </a>
           ))}
         </nav>
-        
-        {/* 审计角色特殊提示 */}
-        {role === 'AUDITOR' && (
-          <div className="mt-6 p-3 bg-yellow-50 rounded-lg">
-            <p className="text-xs text-yellow-700">
-              🔒 审计角色为只读权限，可导出审计日志和证据包
-            </p>
-          </div>
-        )}
       </aside>
       
       {/* 主内容区 */}
