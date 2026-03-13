@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { router, publicProcedure } from '../lib/trpc'
 import { PlanType, Jurisdiction, PlanStatus, LegalIdentity, BankAccountType, EmployeeStatus, GrantStatus } from '@prisma/client'
-import { calculateVestingSchedule } from '../vesting'
+import { calculateVestingSchedule } from './vesting'
 
 // ==================== 计划相关路由 ====================
 export const planRouter = router({
