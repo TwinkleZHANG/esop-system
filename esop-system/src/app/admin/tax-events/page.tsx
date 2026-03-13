@@ -24,11 +24,11 @@ export default function TaxEventsPage() {
   useEffect(() => {
     async function fetchTaxEvents() {
       try {
-        const res = await fetch('/api/trpc/grant.list')
+        const res = await fetch('/api/tax-events')
         const data = await res.json()
-        // Tax events are related to grants, fetch from grants endpoint
-        // For now show placeholder
-        setTaxEvents([])
+        if (Array.isArray(data)) {
+          setTaxEvents(data)
+        }
       } catch (err) {
         console.error('Failed to fetch tax events:', err)
       } finally {

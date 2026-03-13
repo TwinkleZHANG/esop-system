@@ -21,9 +21,11 @@ export default function AssetsPage() {
   useEffect(() => {
     async function fetchAssets() {
       try {
-        // Asset positions are related to grants, fetch from grants endpoint
-        // For now show placeholder
-        setAssets([])
+        const res = await fetch('/api/assets')
+        const data = await res.json()
+        if (Array.isArray(data)) {
+          setAssets(data)
+        }
       } catch (err) {
         console.error('Failed to fetch assets:', err)
       } finally {
