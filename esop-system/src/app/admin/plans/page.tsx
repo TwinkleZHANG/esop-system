@@ -1,6 +1,66 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import { PlanType, Jurisdiction, PlanStatus } from '@prisma/client'
 
+interface Plan {
+  id: string
+  title: string
+  type: PlanType
+  applicableJurisdiction: Jurisdiction
+  poolSize: string
+  status: PlanStatus
+  effectiveDate: string
+}
+
 export default function PlansPage() {
+  const [plans, setPlans] = useState<Plan[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchPlans() {
+      try {
+        const res = await fetch('/api/trpc/plan.list')
+        const data = await res.json()
+        if (data.result?.data?.json) {
+          setPlans(data.result.data.json)
+        }
+      } catch (err) {
+        console.error('Failed to fetch plans:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchPlans()
+  }, [])
+
+  const typeLabels: Record<PlanType, string> = {
+    RSU: 'RSU',
+    OPTION: '期权',
+    VIRTUAL_SHARE: '虚拟股权',
+    LP_SHARE: 'LP份额',
+  }
+
+  const statusLabels: Record<PlanStatus, string> = {
+    DRAFT: '草稿',
+    ACTIVE: '生效中',
+    CLOSED: '已关闭',
+  }
+
+  const jurisdictionLabels: Record<Jurisdiction, string> = {
+    HK: '香港',
+    CN: '内地',
+    OVERSEAS: '海外',
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">加载中...</div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -46,11 +106,35 @@ export default function PlansPage() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            <tr>
-              <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                暂无激励计划，点击右上角"新建计划"开始创建
-              </td>
-            </tr>
+            {plans.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  暂无激励计划，点击右上角"新建计划"开始创建
+                </td>
+              </tr>
+            ) : (
+              plans.map((plan) => (
+                <tr key={plan.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{plan.title}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{typeLabels[plan.type]}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{jurisdictionLabels[plan.applicableJurisdiction]}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{plan.poolSize}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      plan.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
+                      plan.status === 'DRAFT' ? 'bg-gray-100 text-gray-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {statusLabels[plan.status]}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <a href={`/admin/plans/${plan.id}`} className="text-blue-600 hover:text-blue-800 mr-3">查看</a>
+                    <a href={`/admin/plans/${plan.id}/edit`} className="text-gray-600 hover:text-gray-800">编辑</a>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
