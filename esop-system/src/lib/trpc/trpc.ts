@@ -3,7 +3,7 @@ import { initTRPC } from '@trpc/server'
 import { CreateNextContextOptions } from '@trpc/server/adapters/next'
 import { Session } from 'next-auth'
 import { getSession } from 'next-auth/react'
-import { prisma } from './db/prisma'
+import { prisma } from '../db/prisma'
 
 interface CreateContextOptions {
   session: Session | null
