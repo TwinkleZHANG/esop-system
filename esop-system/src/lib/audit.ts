@@ -4,7 +4,7 @@
  * 记录所有关键操作，支持 IPO 尽调和审计导出
  */
 
-import { prisma } from './db/prisma'
+import { prisma } from '../db/prisma'
 
 export type AuditAction = 
   | 'CREATE'
