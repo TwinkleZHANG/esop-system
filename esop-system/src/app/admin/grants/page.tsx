@@ -23,10 +23,10 @@ export default function GrantsPage() {
   useEffect(() => {
     async function fetchGrants() {
       try {
-        const res = await fetch('/api/trpc/grant.list')
+        const res = await fetch('/api/grants')
         const data = await res.json()
-        if (data.result?.data?.json) {
-          setGrants(data.result.data.json)
+        if (Array.isArray(data)) {
+          setGrants(data)
         }
       } catch (err) {
         console.error('Failed to fetch grants:', err)

@@ -20,10 +20,10 @@ export default function EmployeesPage() {
   useEffect(() => {
     async function fetchEmployees() {
       try {
-        const res = await fetch('/api/trpc/employee.list')
+        const res = await fetch('/api/employees')
         const data = await res.json()
-        if (data.result?.data?.json) {
-          setEmployees(data.result.data.json)
+        if (Array.isArray(data)) {
+          setEmployees(data)
         }
       } catch (err) {
         console.error('Failed to fetch employees:', err)

@@ -20,10 +20,10 @@ export default function PlansPage() {
   useEffect(() => {
     async function fetchPlans() {
       try {
-        const res = await fetch('/api/trpc/plan.list')
+        const res = await fetch('/api/plans')
         const data = await res.json()
-        if (data.result?.data?.json) {
-          setPlans(data.result.data.json)
+        if (Array.isArray(data)) {
+          setPlans(data)
         }
       } catch (err) {
         console.error('Failed to fetch plans:', err)
