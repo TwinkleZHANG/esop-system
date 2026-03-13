@@ -1,4 +1,70 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+
+interface Stats {
+  plans: number
+  plansActive: number
+  employees: number
+  employeesActive: number
+  grants: number
+  grantsPending: number
+  taxEvents: number
+  taxEventsPending: number
+}
+
 export default function AdminPage() {
+  const [stats, setStats] = useState<Stats>({
+    plans: 0,
+    plansActive: 0,
+    employees: 0,
+    employeesActive: 0,
+    grants: 0,
+    grantsPending: 0,
+    taxEvents: 0,
+    taxEventsPending: 0,
+  })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const res = await fetch('/api/stats')
+        if (!res.ok) throw new Error('Failed to fetch')
+        const data = await res.json()
+        setStats(data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchStats()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">加载中...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">⚠️</span>
+          <div>
+            <h3 className="font-medium text-yellow-800">数据库连接失败</h3>
+            <p className="text-sm text-yellow-700 mt-1">{error}</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">管理后台</h1>
@@ -9,12 +75,12 @@ export default function AdminPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">激励计划</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">0</p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">{stats.plans}</p>
             </div>
             <div className="text-4xl">📋</div>
           </div>
           <div className="mt-4 text-sm text-gray-500">
-            <span className="text-green-600">0</span> 个进行中
+            <span className="text-green-600">{stats.plansActive}</span> 个进行中
           </div>
         </div>
         
@@ -22,12 +88,12 @@ export default function AdminPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">在册员工</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">0</p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">{stats.employees}</p>
             </div>
             <div className="text-4xl">👥</div>
           </div>
           <div className="mt-4 text-sm text-gray-500">
-            <span className="text-green-600">0</span> 人活跃
+            <span className="text-green-600">{stats.employeesActive}</span> 人活跃
           </div>
         </div>
         
@@ -35,12 +101,12 @@ export default function AdminPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">授予记录</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">0</p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">{stats.grants}</p>
             </div>
             <div className="text-4xl">📝</div>
           </div>
           <div className="mt-4 text-sm text-gray-500">
-            <span className="text-orange-600">0</span> 个待处理
+            <span className="text-orange-600">{stats.grantsPending}</span> 个待处理
           </div>
         </div>
         
@@ -48,12 +114,12 @@ export default function AdminPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">税务事件</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">0</p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">{stats.taxEvents}</p>
             </div>
             <div className="text-4xl">💰</div>
           </div>
           <div className="mt-4 text-sm text-gray-500">
-            <span className="text-red-600">0</span> 个待确认
+            <span className="text-red-600">{stats.taxEventsPending}</span> 个待确认
           </div>
         </div>
       </div>
@@ -102,19 +168,6 @@ export default function AdminPage() {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">最近活动</h2>
         <div className="text-center py-8 text-gray-500">
           暂无活动记录
-        </div>
-      </div>
-      
-      {/* 数据库配置提示 */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <div className="flex items-start gap-3">
-          <span className="text-2xl">⚠️</span>
-          <div>
-            <h3 className="font-medium text-yellow-800">数据库未配置</h3>
-            <p className="text-sm text-yellow-700 mt-1">
-              请配置 <code className="bg-yellow-100 px-1 rounded">.env</code> 文件中的 <code className="bg-yellow-100 px-1 rounded">DATABASE_URL</code>，然后运行 <code className="bg-yellow-100 px-1 rounded">npx prisma migrate dev</code> 初始化数据库。
-            </p>
-          </div>
         </div>
       </div>
     </div>
