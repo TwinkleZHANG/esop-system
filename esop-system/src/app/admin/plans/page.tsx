@@ -42,8 +42,8 @@ export default function PlansPage() {
   }
 
   const statusLabels: Record<PlanStatus, string> = {
-    DRAFT: '草稿',
-    ACTIVE: '生效中',
+    PENDING_APPROVAL: '审批中',
+    APPROVED: '已通过',
     CLOSED: '已关闭',
   }
 
@@ -121,9 +121,9 @@ export default function PlansPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{plan.poolSize}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      plan.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
-                      plan.status === 'DRAFT' ? 'bg-gray-100 text-gray-800' :
-                      'bg-red-100 text-red-800'
+                      plan.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                      plan.status === 'PENDING_APPROVAL' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
                     }`}>
                       {statusLabels[plan.status]}
                     </span>
