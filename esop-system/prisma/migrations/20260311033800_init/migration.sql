@@ -52,6 +52,19 @@ CREATE TABLE "plans" (
 );
 
 -- CreateTable
+CREATE TABLE "employment_entities" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "employment_entities_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "employment_entities_name_key" UNIQUE ("name")
+);
+
+-- CreateTable
 CREATE TABLE "employees" (
     "id" TEXT NOT NULL,
     "employeeId" TEXT NOT NULL,

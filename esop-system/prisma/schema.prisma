@@ -49,6 +49,18 @@ model Employee {
   @@map("employees")
 }
 
+/// 用工主体
+model EmploymentEntity {
+  id            String    @id @default(cuid())
+  name          String    @unique
+  description   String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@map("employment_entities")
+}
+
 /// 持股实体
 model HoldingEntity {
   id              String      @id @default(cuid())

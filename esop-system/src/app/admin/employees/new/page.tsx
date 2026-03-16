@@ -1,8 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+
+interface EmploymentEntity {
+  id: string
+  name: string
+}
 
 export default function NewEmployeePage() {
+  const [entities, setEntities] = useState<EmploymentEntity[]>([])
+  const [newEntityName, setNewEntityName] = useState('')
+  const [showAddEntity, setShowAddEntity] = useState(false)
+  
   const [formData, setFormData] = useState({
     employeeId: '',
     name: '',
@@ -12,7 +21,13 @@ export default function NewEmployeePage() {
     taxJurisdiction: 'CN',
     bankAccountType: 'DOMESTIC',
   })
-  
+
+  useEffect(() => {
+    fetch('/api/employment-entities')
+      .then(res => res.json())
+      .then(data => setEntities(data))
+  }, [])
+
   const handleEntityChange = (entity: string) => {
     setFormData(prev => {
       const current = prev.employmentEntity
@@ -23,6 +38,25 @@ export default function NewEmployeePage() {
       }
     })
   }
+
+  const handleAddEntity = async () => {
+    if (!newEntityName.trim()) return
+    try {
+      const res = await fetch('/api/employment-entities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newEntityName }),
+      })
+      if (res.ok) {
+        const entity = await res.json()
+        setEntities([...entities, entity])
+        setNewEntityName('')
+        setShowAddEntity(false)
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,10 +64,7 @@ export default function NewEmployeePage() {
       const res = await fetch('/api/employees', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          employmentStatus: 'ACTIVE', // 默认在职
-        }),
+        body: JSON.stringify({ ...formData, employmentStatus: 'ACTIVE' }),
       })
       if (res.ok) {
         alert('员工添加成功！')
@@ -43,7 +74,6 @@ export default function NewEmployeePage() {
         alert('添加失败：' + (error.error || '未知错误'))
       }
     } catch (err) {
-      console.error('添加员工失败:', err)
       alert('添加失败')
     }
   }
@@ -57,7 +87,6 @@ export default function NewEmployeePage() {
       
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm p-6 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* 员工工号 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               员工工号 <span className="text-red-500">*</span>
@@ -66,13 +95,12 @@ export default function NewEmployeePage() {
               type="text"
               value={formData.employeeId}
               onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
               placeholder="例如：EMP001"
               required
             />
           </div>
           
-          {/* 姓名 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               姓名 <span className="text-red-500">*</span>
@@ -81,27 +109,23 @@ export default function NewEmployeePage() {
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
               placeholder="员工姓名"
               required
             />
           </div>
           
-          {/* 部门 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              部门
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">部门</label>
             <input
               type="text"
               value={formData.department}
               onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
               placeholder="例如：技术部"
             />
           </div>
           
-          {/* 法律身份 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               法律身份 <span className="text-red-500">*</span>
@@ -109,7 +133,7 @@ export default function NewEmployeePage() {
             <select
               value={formData.legalIdentity}
               onChange={(e) => setFormData({ ...formData, legalIdentity: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
             >
               <option value="CN_RESIDENT">内地</option>
               <option value="HK_RESIDENT">香港</option>
@@ -117,27 +141,50 @@ export default function NewEmployeePage() {
             </select>
           </div>
           
-          {/* 用工主体（多选） */}
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              用工主体
-            </label>
-            <div className="flex gap-4 mt-2">
-              {['北京科技有限公司', 'Hong Kong Tech Ltd', '上海分公司'].map((entity) => (
-                <label key={entity} className="flex items-center gap-2 cursor-pointer">
+            <label className="block text-sm font-medium text-gray-700 mb-1">用工主体</label>
+            <div className="space-y-2">
+              <div className="flex gap-2 flex-wrap">
+                {entities.map(entity => (
+                  <label key={entity.id} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.employmentEntity.includes(entity.name)}
+                      onChange={() => handleEntityChange(entity.name)}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-sm">{entity.name}</span>
+                  </label>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setShowAddEntity(!showAddEntity)}
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  + 添加新用工主体
+                </button>
+              </div>
+              {showAddEntity && (
+                <div className="flex gap-2 mt-2">
                   <input
-                    type="checkbox"
-                    checked={formData.employmentEntity.includes(entity)}
-                    onChange={() => handleEntityChange(entity)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    type="text"
+                    value={newEntityName}
+                    onChange={(e) => setNewEntityName(e.target.value)}
+                    placeholder="新用工主体名称"
+                    className="border border-gray-300 rounded-lg px-3 py-1 text-sm"
                   />
-                  <span className="text-sm text-gray-700">{entity}</span>
-                </label>
-              ))}
+                  <button
+                    type="button"
+                    onClick={handleAddEntity}
+                    className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg"
+                  >
+                    添加
+                  </button>
+                </div>
+              )}
             </div>
           </div>
           
-          {/* 税务法域 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               税务居住地 <span className="text-red-500">*</span>
@@ -145,7 +192,7 @@ export default function NewEmployeePage() {
             <select
               value={formData.taxJurisdiction}
               onChange={(e) => setFormData({ ...formData, taxJurisdiction: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
             >
               <option value="CN">内地</option>
               <option value="HK">香港</option>
@@ -153,15 +200,12 @@ export default function NewEmployeePage() {
             </select>
           </div>
           
-          {/* 银行账户类型 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              银行账号
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">银行账号</label>
             <select
               value={formData.bankAccountType}
               onChange={(e) => setFormData({ ...formData, bankAccountType: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
             >
               <option value="DOMESTIC">内地</option>
               <option value="OVERSEAS">海外</option>
@@ -169,20 +213,9 @@ export default function NewEmployeePage() {
           </div>
         </div>
         
-        {/* 提交按钮 */}
         <div className="flex justify-end gap-3 pt-4 border-t">
-          <a
-            href="/admin/employees"
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-          >
-            取消
-          </a>
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            添加员工
-          </button>
+          <a href="/admin/employees" className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">取消</a>
+          <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">添加员工</button>
         </div>
       </form>
     </div>

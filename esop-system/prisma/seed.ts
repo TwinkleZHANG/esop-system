@@ -50,6 +50,32 @@ async function main() {
   })
   console.log('✅ 创建计划:', plan2.title)
 
+  // 创建示例用工主体
+  const entities = await Promise.all([
+    prisma.employmentEntity.create({
+      data: {
+        name: '北京科技有限公司',
+        description: '总部',
+        isActive: true,
+      },
+    }),
+    prisma.employmentEntity.create({
+      data: {
+        name: 'Hong Kong Tech Ltd',
+        description: '香港子公司',
+        isActive: true,
+      },
+    }),
+    prisma.employmentEntity.create({
+      data: {
+        name: '上海分公司',
+        description: '上海分支机构',
+        isActive: true,
+      },
+    }),
+  ])
+  console.log('✅ 创建用工主体:', entities.length, '个')
+
   // 创建示例员工
   const employees = await Promise.all([
     prisma.employee.create({
