@@ -39,6 +39,19 @@ export default function NewEmployeePage() {
     })
   }
 
+  const handleDeleteEntity = async (id: string, name: string) => {
+    if (!confirm(`确定要删除用工主体"${name}"吗？`)) return
+    try {
+      const res = await fetch(`/api/employment-entities/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setEntities(entities.filter(e => e.id !== id))
+        setFormData(prev => ({ ...prev, employmentEntity: prev.employmentEntity.filter(e => e !== name) }))
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   const handleAddEntity = async () => {
     if (!newEntityName.trim()) return
     try {
@@ -144,17 +157,27 @@ export default function NewEmployeePage() {
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">用工主体</label>
             <div className="space-y-2">
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex gap-2 flex-wrap items-center">
                 {entities.map(entity => (
-                  <label key={entity.id} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.employmentEntity.includes(entity.name)}
-                      onChange={() => handleEntityChange(entity.name)}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <span className="text-sm">{entity.name}</span>
-                  </label>
+                  <div key={entity.id} className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.employmentEntity.includes(entity.name)}
+                        onChange={() => handleEntityChange(entity.name)}
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <span className="text-sm">{entity.name}</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteEntity(entity.id, entity.name)}
+                      className="text-red-500 hover:text-red-700 text-xs ml-1"
+                      title="删除"
+                    >
+                      ×
+                    </button>
+                  </div>
                 ))}
                 <button
                   type="button"
