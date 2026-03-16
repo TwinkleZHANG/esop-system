@@ -129,8 +129,7 @@ export default function PlansPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <a href={`/admin/plans/${plan.id}`} className="text-blue-600 hover:text-blue-800 mr-3">查看</a>
-                    <a href={`/admin/plans/${plan.id}/edit`} className="text-gray-600 hover:text-gray-800">编辑</a>
+                    <a href={`/admin/plans/${plan.id}`} className="text-blue-600 hover:text-blue-800">查看</a>
                   </td>
                 </tr>
               ))
