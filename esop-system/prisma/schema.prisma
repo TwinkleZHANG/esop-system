@@ -33,13 +33,14 @@ model Plan {
 /// 员工档案
 model Employee {
   id                  String        @id @default(cuid())
-  employeeId          String        @unique // 内部员工编号
-  name                String
-  legalIdentity       LegalIdentity // 内地居民/香港居民/海外
-  employmentEntity    String?       // 用工主体
-  taxJurisdiction     Jurisdiction  // 税务居民地
-  bankAccountType     BankAccountType? // 境内/境外
-  status              EmployeeStatus @default(ACTIVE)
+  employeeId          String        @unique // 员工ID（唯一标识）
+  name                String        // 员工姓名
+  department          String?       // 部门
+  legalIdentity       LegalIdentity // 法律身份：内地/香港/海外
+  employmentEntity    String[]      // 用工主体：可多选
+  taxJurisdiction     Jurisdiction  // 税务居住地：内地/香港/海外
+  bankAccountType     BankAccountType? // 银行账号：境内/境外
+  employmentStatus    EmployeeStatus @default(ACTIVE) // 雇佣状态：在职/离职
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
   

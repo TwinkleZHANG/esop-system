@@ -1,16 +1,41 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { LegalIdentity, EmployeeStatus, Jurisdiction } from '@prisma/client'
+import { LegalIdentity, EmployeeStatus, Jurisdiction, BankAccountType } from '@prisma/client'
 
 interface Employee {
   id: string
   employeeId: string
   name: string
+  department: string | null
   legalIdentity: LegalIdentity
+  employmentEntity: string[]
   taxJurisdiction: Jurisdiction
-  status: EmployeeStatus
+  bankAccountType: BankAccountType | null
+  employmentStatus: EmployeeStatus
   _count?: { grants: number }
+}
+
+const identityLabels: Record<LegalIdentity, string> = {
+  CN_RESIDENT: '内地',
+  HK_RESIDENT: '香港',
+  OVERSEAS_RESIDENT: '海外',
+}
+
+const statusLabels: Record<EmployeeStatus, string> = {
+  ACTIVE: '在职',
+  TERMINATED: '离职',
+}
+
+const jurisdictionLabels: Record<Jurisdiction, string> = {
+  HK: '香港',
+  CN: '内地',
+  OVERSEAS: '海外',
+}
+
+const bankLabels: Record<BankAccountType, string> = {
+  DOMESTIC: '内地',
+  OVERSEAS: '海外',
 }
 
 export default function EmployeesPage() {
@@ -33,24 +58,6 @@ export default function EmployeesPage() {
     }
     fetchEmployees()
   }, [])
-
-  const identityLabels: Record<LegalIdentity, string> = {
-    CN_RESIDENT: '内地居民',
-    HK_RESIDENT: '香港居民',
-    OVERSEAS_RESIDENT: '海外居民',
-  }
-
-  const statusLabels: Record<EmployeeStatus, string> = {
-    ACTIVE: '在职',
-    TERMINATED: '已离职',
-    ON_LEAVE: '休假中',
-  }
-
-  const jurisdictionLabels: Record<Jurisdiction, string> = {
-    HK: '香港',
-    CN: '内地',
-    OVERSEAS: '海外',
-  }
 
   if (loading) {
     return (
@@ -83,8 +90,7 @@ export default function EmployeesPage() {
           <select className="border border-gray-300 rounded-lg px-3 py-2 text-sm">
             <option value="">全部状态</option>
             <option value="ACTIVE">在职</option>
-            <option value="TERMINATED">已离职</option>
-            <option value="ON_LEAVE">休假中</option>
+            <option value="TERMINATED">离职</option>
           </select>
         </div>
       </div>
@@ -95,18 +101,20 @@ export default function EmployeesPage() {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">员工</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">工号</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">税务身份</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">税务法域</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">员工ID</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">部门</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">法律身份</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">税务居住地</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">银行账号</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">授予数</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {employees.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
                   暂无员工记录，点击右上角"添加员工"开始录入
                 </td>
               </tr>
@@ -115,21 +123,20 @@ export default function EmployeesPage() {
                 <tr key={employee.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{employee.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{employee.employeeId}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{employee.department || '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{identityLabels[employee.legalIdentity]}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{jurisdictionLabels[employee.taxJurisdiction]}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{employee.bankAccountType ? bankLabels[employee.bankAccountType] : '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{employee._count?.grants || 0}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      employee.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
-                      employee.status === 'TERMINATED' ? 'bg-red-100 text-red-800' :
-                      'bg-yellow-100 text-yellow-800'
+                      employee.employmentStatus === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                     }`}>
-                      {statusLabels[employee.status]}
+                      {statusLabels[employee.employmentStatus]}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{employee._count?.grants || 0}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <a href={`/admin/employees/${employee.id}`} className="text-blue-600 hover:text-blue-800 mr-3">查看</a>
-                    <a href={`/admin/employees/${employee.id}/edit`} className="text-gray-600 hover:text-gray-800">编辑</a>
+                    <a href={`/admin/employees/${employee.id}`} className="text-blue-600 hover:text-blue-800">查看</a>
                   </td>
                 </tr>
               ))

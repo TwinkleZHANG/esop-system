@@ -14,7 +14,7 @@ CREATE TYPE "LegalIdentity" AS ENUM ('CN_RESIDENT', 'HK_RESIDENT', 'OVERSEAS_RES
 CREATE TYPE "BankAccountType" AS ENUM ('DOMESTIC', 'OVERSEAS');
 
 -- CreateEnum
-CREATE TYPE "EmployeeStatus" AS ENUM ('ACTIVE', 'TERMINATED', 'ON_LEAVE');
+CREATE TYPE "EmployeeStatus" AS ENUM ('ACTIVE', 'TERMINATED');
 
 -- CreateEnum
 CREATE TYPE "GrantStatus" AS ENUM ('DRAFT', 'GRANTED', 'VESTING', 'VESTED', 'EXERCISED', 'SETTLED', 'CANCELLED', 'FORFEITED');
@@ -56,11 +56,12 @@ CREATE TABLE "employees" (
     "id" TEXT NOT NULL,
     "employeeId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "department" TEXT,
     "legalIdentity" "LegalIdentity" NOT NULL,
-    "employmentEntity" TEXT,
+    "employmentEntity" TEXT[],
     "taxJurisdiction" "Jurisdiction" NOT NULL,
     "bankAccountType" "BankAccountType",
-    "status" "EmployeeStatus" NOT NULL DEFAULT 'ACTIVE',
+    "employmentStatus" "EmployeeStatus" NOT NULL DEFAULT 'ACTIVE',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
