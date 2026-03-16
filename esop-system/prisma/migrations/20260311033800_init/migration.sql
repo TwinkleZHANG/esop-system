@@ -5,7 +5,7 @@ CREATE TYPE "PlanType" AS ENUM ('RSU', 'OPTION', 'VIRTUAL_SHARE', 'LP_SHARE');
 CREATE TYPE "Jurisdiction" AS ENUM ('HK', 'CN', 'OVERSEAS');
 
 -- CreateEnum
-CREATE TYPE "PlanStatus" AS ENUM ('DRAFT', 'ACTIVE', 'CLOSED');
+CREATE TYPE "PlanStatus" AS ENUM ('PENDING_APPROVAL', 'APPROVED', 'CLOSED');
 
 -- CreateEnum
 CREATE TYPE "LegalIdentity" AS ENUM ('CN_RESIDENT', 'HK_RESIDENT', 'OVERSEAS_RESIDENT');
@@ -17,7 +17,7 @@ CREATE TYPE "BankAccountType" AS ENUM ('DOMESTIC', 'OVERSEAS');
 CREATE TYPE "EmployeeStatus" AS ENUM ('ACTIVE', 'TERMINATED', 'ON_LEAVE');
 
 -- CreateEnum
-CREATE TYPE "GrantStatus" AS ENUM ('GRANTED', 'VESTING', 'VESTED', 'EXERCISED', 'SETTLED', 'CANCELLED', 'FORFEITED');
+CREATE TYPE "GrantStatus" AS ENUM ('DRAFT', 'GRANTED', 'VESTING', 'VESTED', 'EXERCISED', 'SETTLED', 'CANCELLED', 'FORFEITED');
 
 -- CreateEnum
 CREATE TYPE "VestingStatus" AS ENUM ('PENDING', 'VESTED', 'CANCELLED');
@@ -40,10 +40,11 @@ CREATE TABLE "plans" (
     "title" TEXT NOT NULL,
     "type" "PlanType" NOT NULL,
     "applicableJurisdiction" "Jurisdiction" NOT NULL,
+    "settlementMethod" TEXT[],
     "poolSize" DECIMAL(20,4) NOT NULL,
     "effectiveDate" TIMESTAMP(3) NOT NULL,
     "boardApprovalId" TEXT,
-    "status" "PlanStatus" NOT NULL DEFAULT 'DRAFT',
+    "status" "PlanStatus" NOT NULL DEFAULT 'PENDING_APPROVAL',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -101,7 +102,7 @@ CREATE TABLE "grants" (
     "grantDate" TIMESTAMP(3) NOT NULL,
     "vestingStartDate" TIMESTAMP(3) NOT NULL,
     "vestingEndDate" TIMESTAMP(3),
-    "status" "GrantStatus" NOT NULL DEFAULT 'GRANTED',
+    "status" "GrantStatus" NOT NULL DEFAULT 'DRAFT',
     "type" "PlanType" NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,

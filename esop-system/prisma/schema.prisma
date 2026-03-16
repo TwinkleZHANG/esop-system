@@ -16,11 +16,12 @@ model Plan {
   id                    String          @id @default(cuid())
   title                 String          // 计划标题
   type                  PlanType        // RSU / Option / 虚拟股权 / LP份额
-  applicableJurisdiction Jurisdiction    // 适用法域 HK/CN
+  applicableJurisdiction Jurisdiction    // 适用法域 HK/CN/OVERSEAS
+  settlementMethod      String[]        // 交割方式: 实股/LP份额/现金
   poolSize              Decimal         @db.Decimal(20, 4) // 激励池规模
   effectiveDate         DateTime        // 生效日期
   boardApprovalId       String?         // 董事会决议文件编号
-  status                PlanStatus      @default(DRAFT)
+  status                PlanStatus      @default(PENDING_APPROVAL)
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
   
@@ -212,9 +213,9 @@ enum Jurisdiction {
 }
 
 enum PlanStatus {
-  DRAFT
-  ACTIVE
-  CLOSED
+  PENDING_APPROVAL  // 审批中
+  APPROVED          // 已通过
+  CLOSED            // 已关闭
 }
 
 enum LegalIdentity {

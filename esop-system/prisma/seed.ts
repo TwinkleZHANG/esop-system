@@ -27,10 +27,11 @@ async function main() {
       title: '2024年 RSU 激励计划',
       type: 'RSU',
       applicableJurisdiction: 'HK',
+      settlementMethod: ['LP份额'],
       poolSize: 1000000,
       effectiveDate: new Date('2024-01-01'),
       boardApprovalId: 'BR-2024-001',
-      status: 'ACTIVE',
+      status: 'APPROVED',
     },
   })
   console.log('✅ 创建计划:', plan1.title)
@@ -40,10 +41,11 @@ async function main() {
       title: '2024年 Option 激励计划',
       type: 'OPTION',
       applicableJurisdiction: 'CN',
+      settlementMethod: ['实股'],
       poolSize: 500000,
       effectiveDate: new Date('2024-01-01'),
       boardApprovalId: 'BR-2024-002',
-      status: 'ACTIVE',
+      status: 'APPROVED',
     },
   })
   console.log('✅ 创建计划:', plan2.title)

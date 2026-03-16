@@ -14,7 +14,7 @@ export async function GET() {
       pendingTaxEventCount,
     ] = await Promise.all([
       prisma.plan.count(),
-      prisma.plan.count({ where: { status: 'ACTIVE' } }),
+      prisma.plan.count({ where: { status: 'APPROVED' } }),
       prisma.employee.count(),
       prisma.employee.count({ where: { status: 'ACTIVE' } }),
       prisma.grant.count(),
