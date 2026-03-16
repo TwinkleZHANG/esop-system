@@ -7,16 +7,46 @@ export default function NewPlanPage() {
     title: '',
     type: 'RSU',
     applicableJurisdiction: 'HK',
+    settlementMethod: [] as string[],
     poolSize: '',
     effectiveDate: '',
     boardApprovalId: '',
   })
   
+  const handleSettlementMethodChange = (method: string) => {
+    setFormData(prev => {
+      const current = prev.settlementMethod
+      if (current.includes(method)) {
+        return { ...prev, settlementMethod: current.filter(m => m !== method) }
+      } else {
+        return { ...prev, settlementMethod: [...current, method] }
+      }
+    })
+  }
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: 调用 tRPC API 创建计划
-    console.log('创建计划:', formData)
-    alert('功能开发中，请先配置数据库')
+    try {
+      const res = await fetch('/api/plans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          poolSize: parseFloat(formData.poolSize),
+          effectiveDate: new Date(formData.effectiveDate),
+        }),
+      })
+      if (res.ok) {
+        alert('计划创建成功！')
+        window.location.href = '/admin/plans'
+      } else {
+        const error = await res.json()
+        alert('创建失败：' + (error.error || '未知错误'))
+      }
+    } catch (err) {
+      console.error('创建计划失败:', err)
+      alert('创建失败')
+    }
   }
   
   return (
@@ -74,6 +104,26 @@ export default function NewPlanPage() {
               <option value="CN">中国内地</option>
               <option value="OVERSEAS">海外</option>
             </select>
+          </div>
+          
+          {/* 交割方式 */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              交割方式 <span className="text-red-500">*</span>
+            </label>
+            <div className="flex gap-4 mt-2">
+              {['实股', 'LP份额', '现金'].map((method) => (
+                <label key={method} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.settlementMethod.includes(method)}
+                    onChange={() => handleSettlementMethodChange(method)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">{method}</span>
+                </label>
+              ))}
+            </div>
           </div>
           
           {/* 池规模 */}
