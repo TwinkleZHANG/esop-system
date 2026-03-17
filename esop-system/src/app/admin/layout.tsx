@@ -8,6 +8,7 @@ const MENU_ITEMS = [
   { key: 'plans', href: '/admin/plans', label: '激励计划', icon: '📋', roles: ['ADMIN_CREATE', 'ADMIN_APPROVE'] },
   { key: 'employees', href: '/admin/employees', label: '员工档案', icon: '👥', roles: ['ADMIN_CREATE', 'ADMIN_APPROVE'] },
   { key: 'grants', href: '/admin/grants', label: '授予管理', icon: '📝', roles: ['ADMIN_CREATE', 'ADMIN_APPROVE'] },
+  { key: 'holding-entities', href: '/admin/holding-entities', label: '持股主体库', icon: '🏢', roles: ['ADMIN_CREATE', 'ADMIN_APPROVE'] },
   { key: 'tax-events', href: '/admin/tax-events', label: '税务事件', icon: '💰', roles: ['ADMIN_CREATE'] },
   { key: 'assets', href: '/admin/assets', label: '资产管理', icon: '🏦', roles: ['ADMIN_CREATE'] },
   { key: 'audit', href: '/admin/audit', label: '审计日志', icon: '📑', roles: ['ADMIN_APPROVE'] },
