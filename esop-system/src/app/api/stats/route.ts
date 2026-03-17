@@ -16,7 +16,7 @@ export async function GET() {
       prisma.plan.count(),
       prisma.plan.count({ where: { status: 'APPROVED' } }),
       prisma.employee.count(),
-      prisma.employee.count({ where: { status: 'ACTIVE' } }),
+      prisma.employee.count({ where: { employmentStatus: 'ACTIVE' } }),
       prisma.grant.count(),
       prisma.grant.count({ where: { status: 'GRANTED' } }),
       prisma.taxEvent.count(),
