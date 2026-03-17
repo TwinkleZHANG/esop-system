@@ -84,14 +84,19 @@ CREATE TABLE "employees" (
 -- CreateTable
 CREATE TABLE "holding_entities" (
     "id" TEXT NOT NULL,
+    "heId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "lpAccountId" TEXT,
+    "lpUnits" DECIMAL(20,4),
+    "economicRights" TEXT[],
     "type" TEXT NOT NULL,
     "jurisdiction" "Jurisdiction" NOT NULL,
     "description" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "holding_entities_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "holding_entities_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "holding_entities_heId_key" UNIQUE ("heId")
 );
 
 -- CreateTable

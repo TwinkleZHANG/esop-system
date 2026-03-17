@@ -64,7 +64,11 @@ model EmploymentEntity {
 /// 持股实体
 model HoldingEntity {
   id              String      @id @default(cuid())
-  name            String
+  heId            String      @unique // 代持主体ID（唯一标识）
+  name            String      // 代持主体名称
+  lpAccountId     String?     // LP份额账户
+  lpUnits         Decimal?    @db.Decimal(20, 4) // 对应份额
+  economicRights  String[]    // 经济权益：分红/转让收益
   type            String      // 实股/LP份额等
   jurisdiction    Jurisdiction
   description     String?
