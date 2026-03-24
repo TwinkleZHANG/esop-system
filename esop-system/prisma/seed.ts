@@ -131,9 +131,11 @@ async function main() {
   // 创建示例持股实体
   const holdingEntity = await prisma.holdingEntity.create({
     data: {
+      heId: 'HE-2024-001',
       name: '员工持股平台合伙企业（有限合伙）',
       type: 'LP份额',
       jurisdiction: 'CN',
+      economicRights: ['分红', '转让收益'],
       description: '用于员工股权激励的持股平台',
     },
   })
