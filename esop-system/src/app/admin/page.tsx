@@ -127,9 +127,9 @@ export default function AdminPage() {
       {/* 快捷操作 */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">快捷操作</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <a 
-            href="/admin/plans/new" 
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <a
+            href="/admin/plans/new"
             className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <span className="text-2xl">➕</span>
@@ -138,9 +138,9 @@ export default function AdminPage() {
               <p className="text-sm text-gray-500">创建激励计划池</p>
             </div>
           </a>
-          
-          <a 
-            href="/admin/employees/new" 
+
+          <a
+            href="/admin/employees/new"
             className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <span className="text-2xl">👤</span>
@@ -149,15 +149,26 @@ export default function AdminPage() {
               <p className="text-sm text-gray-500">录入员工信息</p>
             </div>
           </a>
-          
-          <a 
-            href="/admin/grants/new" 
+
+          <a
+            href="/admin/grants/new"
             className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <span className="text-2xl">🎁</span>
             <div>
               <p className="font-medium text-gray-900">创建授予</p>
               <p className="text-sm text-gray-500">授予员工权益</p>
+            </div>
+          </a>
+
+          <a
+            href="/admin/tax-events"
+            className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <span className="text-2xl">💰</span>
+            <div>
+              <p className="font-medium text-gray-900">税务事件</p>
+              <p className="text-sm text-gray-500">管理税务计算和申报</p>
             </div>
           </a>
         </div>
