@@ -342,6 +342,7 @@ export default function GrantDetailPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">应税金额</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">税额</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -362,6 +363,14 @@ export default function GrantDetailPage() {
                       <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
                         {taxEventStatusLabels[event.status]}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <a
+                        href={`/admin/tax-events/${event.id}`}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        查看
+                      </a>
                     </td>
                   </tr>
                 ))}
