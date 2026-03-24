@@ -93,8 +93,6 @@ export default function GrantDetailPage() {
   const params = useParams()
   const [grant, setGrant] = useState<Grant | null>(null)
   const [loading, setLoading] = useState(true)
-  const [isEditing, setIsEditing] = useState(false)
-  const [editData, setEditData] = useState<Partial<Grant>>({})
 
   useEffect(() => {
     async function fetchGrant() {
@@ -103,7 +101,6 @@ export default function GrantDetailPage() {
         const data = await res.json()
         if (data.id) {
           setGrant(data)
-          setEditData(data)
         }
       } catch (err) {
         console.error('Failed to fetch grant:', err)
@@ -115,27 +112,6 @@ export default function GrantDetailPage() {
       fetchGrant()
     }
   }, [params.id])
-
-  const handleSave = async () => {
-    if (!grant) return
-    try {
-      const res = await fetch(`/api/grants/${grant.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editData),
-      })
-      if (res.ok) {
-        alert('保存成功！')
-        setIsEditing(false)
-        window.location.reload()
-      } else {
-        const error = await res.json()
-        alert('保存失败：' + (error.error || '未知错误'))
-      }
-    } catch (err) {
-      alert('保存失败')
-    }
-  }
 
   if (loading) {
     return (
@@ -193,95 +169,32 @@ export default function GrantDetailPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-500 mb-1">授予数量</label>
-            {isEditing ? (
-              <input
-                type="number"
-                value={editData.quantity || ''}
-                onChange={(e) => setEditData({ ...editData, quantity: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              />
-            ) : (
-              <p className="text-gray-900">{grant.quantity}</p>
-            )}
+            <p className="text-gray-900">{grant.quantity}</p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-500 mb-1">行权价</label>
-            {isEditing ? (
-              <input
-                type="number"
-                step="0.01"
-                value={editData.strikePrice || ''}
-                onChange={(e) => setEditData({ ...editData, strikePrice: e.target.value || null })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              />
-            ) : (
-              <p className="text-gray-900">{grant.strikePrice ? `¥${grant.strikePrice}` : '-'}</p>
-            )}
+            <p className="text-gray-900">{grant.strikePrice ? `¥${grant.strikePrice}` : '-'}</p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-500 mb-1">授予日期</label>
-            {isEditing ? (
-              <input
-                type="date"
-                value={editData.grantDate?.split('T')[0] || ''}
-                onChange={(e) => setEditData({ ...editData, grantDate: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              />
-            ) : (
-              <p className="text-gray-900">{new Date(grant.grantDate).toLocaleDateString('zh-CN')}</p>
-            )}
+            <p className="text-gray-900">{new Date(grant.grantDate).toLocaleDateString('zh-CN')}</p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-500 mb-1">归属开始日期</label>
-            {isEditing ? (
-              <input
-                type="date"
-                value={editData.vestingStartDate?.split('T')[0] || ''}
-                onChange={(e) => setEditData({ ...editData, vestingStartDate: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              />
-            ) : (
-              <p className="text-gray-900">{new Date(grant.vestingStartDate).toLocaleDateString('zh-CN')}</p>
-            )}
+            <p className="text-gray-900">{new Date(grant.vestingStartDate).toLocaleDateString('zh-CN')}</p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-500 mb-1">归属结束日期</label>
-            {isEditing ? (
-              <input
-                type="date"
-                value={editData.vestingEndDate?.split('T')[0] || ''}
-                onChange={(e) => setEditData({ ...editData, vestingEndDate: e.target.value || null })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              />
-            ) : (
-              <p className="text-gray-900">{grant.vestingEndDate ? new Date(grant.vestingEndDate).toLocaleDateString('zh-CN') : '-'}</p>
-            )}
+            <p className="text-gray-900">{grant.vestingEndDate ? new Date(grant.vestingEndDate).toLocaleDateString('zh-CN') : '-'}</p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-500 mb-1">状态</label>
-            {isEditing ? (
-              <select
-                value={editData.status}
-                onChange={(e) => setEditData({ ...editData, status: e.target.value as GrantStatus })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              >
-                <option value="DRAFT">草稿</option>
-                <option value="GRANTED">已授予</option>
-                <option value="VESTING">归属中</option>
-                <option value="VESTED">已归属</option>
-                <option value="EXERCISED">已行权</option>
-                <option value="SETTLED">已交割</option>
-                <option value="CANCELLED">已取消</option>
-                <option value="FORFEITED">已失效</option>
-              </select>
-            ) : (
-              <p className="text-gray-900">{statusLabels[grant.status]}</p>
-            )}
+            <p className="text-gray-900">{statusLabels[grant.status]}</p>
           </div>
 
           <div>
@@ -378,30 +291,6 @@ export default function GrantDetailPage() {
           >
             返回列表
           </a>
-
-          {isEditing ? (
-            <>
-              <button
-                onClick={() => setIsEditing(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                保存
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-            >
-              编辑
-            </button>
-          )}
         </div>
       </div>
     </div>
