@@ -3,6 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { GrantStatus, PlanType, VestingStatus, TaxEventStatus, TaxEventType } from '@prisma/client'
+import {
+  statusLabels,
+  statusColors,
+  getAllowedTransitions,
+  getStatusDescription,
+} from '@/lib/state-machine/grant-state-machine'
 
 interface VestingEvent {
   id: string
@@ -41,33 +47,26 @@ interface Grant {
   taxEvents: TaxEvent[]
 }
 
+interface StatusLog {
+  id: string
+  preStatus: string
+  postStatus: string
+  timestamp: string
+  operator: string
+  operatorRole: string
+  document?: string
+}
+
+interface AllowedTransition {
+  value: GrantStatus
+  label: string
+}
+
 const typeLabels: Record<PlanType, string> = {
   RSU: 'RSU',
   OPTION: '期权',
   VIRTUAL_SHARE: '虚拟股权',
   LP_SHARE: 'LP份额',
-}
-
-const statusLabels: Record<GrantStatus, string> = {
-  DRAFT: '草稿',
-  GRANTED: '已授予',
-  VESTING: '归属中',
-  VESTED: '已归属',
-  EXERCISED: '已行权',
-  SETTLED: '已交割',
-  CANCELLED: '已取消',
-  FORFEITED: '已失效',
-}
-
-const statusColors: Record<GrantStatus, string> = {
-  DRAFT: 'bg-gray-100 text-gray-800',
-  GRANTED: 'bg-blue-100 text-blue-800',
-  VESTING: 'bg-orange-100 text-orange-800',
-  VESTED: 'bg-green-100 text-green-800',
-  EXERCISED: 'bg-purple-100 text-purple-800',
-  SETTLED: 'bg-gray-100 text-gray-800',
-  CANCELLED: 'bg-red-100 text-red-800',
-  FORFEITED: 'bg-red-100 text-red-800',
 }
 
 const vestingStatusLabels: Record<VestingStatus, string> = {
@@ -96,6 +95,14 @@ export default function GrantDetailPage() {
   const [isEditing, setIsEditing] = useState(false)
   const [editData, setEditData] = useState<Partial<Grant>>({})
 
+  // 状态机相关
+  const [allowedTransitions, setAllowedTransitions] = useState<AllowedTransition[]>([])
+  const [statusLogs, setStatusLogs] = useState<StatusLog[]>([])
+  const [showStatusModal, setShowStatusModal] = useState(false)
+  const [targetStatus, setTargetStatus] = useState<GrantStatus | ''>('')
+  const [statusDocument, setStatusDocument] = useState('')
+  const [updatingStatus, setUpdatingStatus] = useState(false)
+
   useEffect(() => {
     async function fetchGrant() {
       try {
@@ -116,6 +123,31 @@ export default function GrantDetailPage() {
     }
   }, [params.id])
 
+  // 获取允许的状态流转和日志
+  useEffect(() => {
+    async function fetchStatusInfo() {
+      if (!grant) return
+      try {
+        // 获取允许的状态流转
+        const transitionsRes = await fetch(`/api/grants/${grant.id}/status`)
+        if (transitionsRes.ok) {
+          const transitionsData = await transitionsRes.json()
+          setAllowedTransitions(transitionsData.allowedTransitions)
+        }
+
+        // 获取状态日志
+        const logsRes = await fetch(`/api/grants/${grant.id}/logs`)
+        if (logsRes.ok) {
+          const logsData = await logsRes.json()
+          setStatusLogs(logsData)
+        }
+      } catch (err) {
+        console.error('Failed to fetch status info:', err)
+      }
+    }
+    fetchStatusInfo()
+  }, [grant])
+
   const handleSave = async () => {
     if (!grant) return
     try {
@@ -134,6 +166,37 @@ export default function GrantDetailPage() {
       }
     } catch (err) {
       alert('保存失败')
+    }
+  }
+
+  // 状态变更处理
+  const handleStatusChange = async () => {
+    if (!grant || !targetStatus) return
+    setUpdatingStatus(true)
+    try {
+      const res = await fetch(`/api/grants/${grant.id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: targetStatus,
+          document: statusDocument,
+          operator: 'admin',
+        }),
+      })
+      if (res.ok) {
+        alert('状态变更成功！')
+        setShowStatusModal(false)
+        setTargetStatus('')
+        setStatusDocument('')
+        window.location.reload()
+      } else {
+        const error = await res.json()
+        alert('状态变更失败：' + (error.error || '未知错误'))
+      }
+    } catch (err) {
+      alert('状态变更失败')
+    } finally {
+      setUpdatingStatus(false)
     }
   }
 
@@ -264,24 +327,7 @@ export default function GrantDetailPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-500 mb-1">状态</label>
-            {isEditing ? (
-              <select
-                value={editData.status}
-                onChange={(e) => setEditData({ ...editData, status: e.target.value as GrantStatus })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              >
-                <option value="DRAFT">草稿</option>
-                <option value="GRANTED">已授予</option>
-                <option value="VESTING">归属中</option>
-                <option value="VESTED">已归属</option>
-                <option value="EXERCISED">已行权</option>
-                <option value="SETTLED">已交割</option>
-                <option value="CANCELLED">已取消</option>
-                <option value="FORFEITED">已失效</option>
-              </select>
-            ) : (
-              <p className="text-gray-900">{statusLabels[grant.status]}</p>
-            )}
+            <p className="text-gray-900">{statusLabels[grant.status]}</p>
           </div>
 
           <div>
@@ -378,6 +424,152 @@ export default function GrantDetailPage() {
             </table>
           )}
         </div>
+
+        {/* 状态流转 */}
+        <div className="pt-6 border-t">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">状态机管理</h3>
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <span className="text-sm text-gray-500">当前状态:</span>
+                <span className={`ml-2 px-3 py-1 text-sm font-medium rounded-full ${statusColors[grant.status]}`}>
+                  {statusLabels[grant.status]}
+                </span>
+                <p className="text-xs text-gray-500 mt-1">{getStatusDescription(grant.status)}</p>
+              </div>
+              {allowedTransitions.length > 0 && (
+                <button
+                  onClick={() => setShowStatusModal(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  状态变更
+                </button>
+              )}
+            </div>
+
+            {allowedTransitions.length > 0 && (
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">可流转至:</span>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {allowedTransitions.map((t) => (
+                    <span
+                      key={t.value}
+                      className="px-2 py-1 bg-white border border-gray-300 rounded text-xs"
+                    >
+                      {t.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 状态变更日志 */}
+        <div className="pt-6 border-t">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">状态变更日志</h3>
+          {statusLogs.length === 0 ? (
+            <p className="text-gray-500">暂无状态变更记录</p>
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">时间</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">变更</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作者</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">依据文件</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {statusLogs.map((log) => (
+                  <tr key={log.id}>
+                    <td className="px-4 py-3 text-sm text-gray-900">
+                      {new Date(log.timestamp).toLocaleString('zh-CN')}
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <span className="text-gray-500">{statusLabels[log.preStatus as GrantStatus]}</span>
+                      <span className="mx-2 text-gray-400">→</span>
+                      <span className="font-medium text-gray-900">{statusLabels[log.postStatus as GrantStatus]}</span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-500">
+                      {log.operator} ({log.operatorRole})
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-500">
+                      {log.document || '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* 状态变更弹窗 */}
+        {showStatusModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">状态变更</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    当前状态
+                  </label>
+                  <div className="px-3 py-2 bg-gray-100 rounded-lg text-gray-700">
+                    {statusLabels[grant.status]}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    目标状态 <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={targetStatus}
+                    onChange={(e) => setTargetStatus(e.target.value as GrantStatus)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">请选择目标状态</option>
+                    {allowedTransitions.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    法律/财务依据文件
+                  </label>
+                  <input
+                    type="text"
+                    value={statusDocument}
+                    onChange={(e) => setStatusDocument(e.target.value)}
+                    placeholder="如: 协议编号、董事会决议编号"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowStatusModal(false)
+                    setTargetStatus('')
+                    setStatusDocument('')
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleStatusChange}
+                  disabled={!targetStatus || updatingStatus}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {updatingStatus ? '处理中...' : '确认变更'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 操作按钮 */}
         <div className="flex justify-end gap-3 pt-4 border-t">

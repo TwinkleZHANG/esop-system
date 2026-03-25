@@ -4,7 +4,7 @@
  * 记录所有关键操作，支持 IPO 尽调和审计导出
  */
 
-import { prisma } from '../db/prisma'
+import prisma from '@/lib/db/prisma'
 
 export type AuditAction = 
   | 'CREATE'
@@ -35,8 +35,8 @@ export async function logAudit(input: AuditLogInput) {
       entityType: input.entityType,
       entityId: input.entityId,
       action: input.action,
-      oldValue: input.oldValue || null,
-      newValue: input.newValue || null,
+      oldValue: input.oldValue ? JSON.parse(JSON.stringify(input.oldValue)) : undefined,
+      newValue: input.newValue ? JSON.parse(JSON.stringify(input.newValue)) : undefined,
       operatorId: input.operatorId,
       operatorRole: input.operatorRole,
     },
@@ -56,8 +56,14 @@ export async function getAuditLogs(params: {
   limit?: number
   offset?: number
 }) {
-  const where: Record<string, unknown> = {}
-  
+  const where: {
+    entityType?: string
+    entityId?: string
+    operatorId?: string
+    action?: string
+    createdAt?: { gte?: Date; lte?: Date }
+  } = {}
+
   if (params.entityType) where.entityType = params.entityType
   if (params.entityId) where.entityId = params.entityId
   if (params.operatorId) where.operatorId = params.operatorId

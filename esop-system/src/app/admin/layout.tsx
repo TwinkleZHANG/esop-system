@@ -10,8 +10,8 @@ const MENU_ITEMS = [
   { key: 'grants', href: '/admin/grants', label: '授予管理', icon: '📝', roles: ['ADMIN_CREATE', 'ADMIN_APPROVE'] },
   { key: 'holding-entities', href: '/admin/holding-entities', label: '持股主体库', icon: '🏢', roles: ['ADMIN_CREATE', 'ADMIN_APPROVE'] },
   { key: 'tax-events', href: '/admin/tax-events', label: '税务事件', icon: '💰', roles: ['ADMIN_CREATE', 'ADMIN_APPROVE'] },
+  { key: 'valuations', href: '/admin/valuations', label: '估值管理', icon: '📈', roles: ['ADMIN_CREATE', 'ADMIN_APPROVE'] },
   { key: 'assets', href: '/admin/assets', label: '资产管理', icon: '🏦', roles: ['ADMIN_CREATE'] },
-  { key: 'audit', href: '/admin/audit', label: '审计日志', icon: '📑', roles: ['ADMIN_APPROVE'] },
 ]
 
 export default function AdminLayout({

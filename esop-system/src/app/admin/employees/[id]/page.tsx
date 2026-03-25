@@ -28,6 +28,11 @@ interface Employee {
   grants: Grant[]
 }
 
+interface EmploymentEntity {
+  id: string
+  name: string
+}
+
 const identityLabels: Record<LegalIdentity, string> = {
   CN_RESIDENT: '内地',
   HK_RESIDENT: '香港',
@@ -37,6 +42,7 @@ const identityLabels: Record<LegalIdentity, string> = {
 const statusLabels: Record<EmployeeStatus, string> = {
   ACTIVE: '在职',
   TERMINATED: '离职',
+  ON_LEAVE: '休假中',
 }
 
 const jurisdictionLabels: Record<Jurisdiction, string> = {
@@ -64,6 +70,7 @@ const grantStatusLabels: Record<GrantStatus, string> = {
 export default function EmployeeDetailPage() {
   const params = useParams()
   const [employee, setEmployee] = useState<Employee | null>(null)
+  const [entities, setEntities] = useState<EmploymentEntity[]>([])
   const [loading, setLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [editData, setEditData] = useState<Partial<Employee>>({})
@@ -87,6 +94,21 @@ export default function EmployeeDetailPage() {
       fetchEmployee()
     }
   }, [params.id])
+
+  useEffect(() => {
+    async function fetchEntities() {
+      try {
+        const res = await fetch('/api/employment-entities')
+        if (res.ok) {
+          const data = await res.json()
+          setEntities(data)
+        }
+      } catch (err) {
+        console.error('Failed to fetch entities:', err)
+      }
+    }
+    fetchEntities()
+  }, [])
 
   const handleSave = async () => {
     if (!employee) return
@@ -209,16 +231,16 @@ export default function EmployeeDetailPage() {
           <div>
             <label className="block text-sm font-medium text-gray-500 mb-1">用工主体</label>
             {isEditing ? (
-              <div className="flex gap-4">
-                {['北京科技有限公司', 'Hong Kong Tech Ltd', '上海分公司'].map((entity) => (
-                  <label key={entity} className="flex items-center gap-2 cursor-pointer">
+              <div className="flex gap-4 flex-wrap">
+                {entities.map((entity) => (
+                  <label key={entity.id} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={editData.employmentEntity?.includes(entity) || false}
-                      onChange={() => handleEntityChange(entity)}
+                      checked={editData.employmentEntity?.includes(entity.name) || false}
+                      onChange={() => handleEntityChange(entity.name)}
                       className="w-4 h-4 text-blue-600"
                     />
-                    <span className="text-sm">{entity}</span>
+                    <span className="text-sm">{entity.name}</span>
                   </label>
                 ))}
               </div>

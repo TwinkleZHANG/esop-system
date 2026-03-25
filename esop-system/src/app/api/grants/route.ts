@@ -21,6 +21,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const {
+      grantId,
       planId,
       employeeId,
       quantity,
@@ -29,9 +30,10 @@ export async function POST(request: Request) {
       vestingStartDate,
       vestingEndDate,
       type,
+      status,
     } = body
 
-    if (!planId || !employeeId || !quantity || !grantDate || !vestingStartDate) {
+    if (!planId || !employeeId || !quantity || !grantDate) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -62,16 +64,25 @@ export async function POST(request: Request) {
       )
     }
 
+    // Validate strikePrice for OPTION type
+    if (plan.type === 'OPTION' && (strikePrice === undefined || strikePrice === null)) {
+      return NextResponse.json(
+        { error: 'Strike price is required for OPTION grants' },
+        { status: 400 }
+      )
+    }
+
     const grant = await prisma.grant.create({
       data: {
         planId,
         employeeId,
         quantity,
-        strikePrice: strikePrice || undefined,
+        strikePrice: plan.type === 'OPTION' ? strikePrice : null,
         grantDate: new Date(grantDate),
-        vestingStartDate: new Date(vestingStartDate),
+        vestingStartDate: new Date(vestingStartDate || grantDate),
         vestingEndDate: vestingEndDate ? new Date(vestingEndDate) : undefined,
         type: type || plan.type,
+        status: status || 'DRAFT',
       },
     })
 

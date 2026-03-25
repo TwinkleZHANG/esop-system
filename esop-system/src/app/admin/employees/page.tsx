@@ -25,6 +25,7 @@ const identityLabels: Record<LegalIdentity, string> = {
 const statusLabels: Record<EmployeeStatus, string> = {
   ACTIVE: '在职',
   TERMINATED: '离职',
+  ON_LEAVE: '休假中',
 }
 
 const jurisdictionLabels: Record<Jurisdiction, string> = {

@@ -5,10 +5,6 @@ export async function GET() {
   try {
     const assets = await prisma.assetPosition.findMany({
       orderBy: { createdAt: 'desc' },
-      include: {
-        employee: true,
-        holdingEntity: true,
-      },
     })
     return NextResponse.json(assets)
   } catch (error) {
