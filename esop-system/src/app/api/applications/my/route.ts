@@ -17,9 +17,22 @@ export async function GET(request: Request) {
       )
     }
 
+    // 先查找员工（通过 employeeId 如 EMP003）
+    const employee = await prisma.employee.findUnique({
+      where: { employeeId },
+    })
+
+    if (!employee) {
+      return NextResponse.json(
+        { error: 'Employee not found' },
+        { status: 404 }
+      )
+    }
+
+    // 使用员工的 UUID (employee.id) 查询申请
     const applications = await prisma.application.findMany({
       where: {
-        employeeId,
+        employeeId: employee.id,
       },
       include: {
         grant: {
