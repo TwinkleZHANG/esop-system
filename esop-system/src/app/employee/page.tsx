@@ -65,6 +65,7 @@ interface Employee {
 
 interface Grant {
   id: string
+  employeeId: string
   plan: {
     title: string
     type: PlanType
@@ -190,6 +191,13 @@ export default function EmployeePage() {
   // 提交申请
   const handleSubmit = async () => {
     if (!selectedGrant || !applyForm.type) return
+
+    console.log('[Employee] Submitting application:', {
+      grantId: selectedGrant.id,
+      grantEmployeeId: selectedGrant.employeeId,
+      employeeId: employee?.id,
+      employee: employee,
+    })
 
     setSubmitting(true)
     try {
