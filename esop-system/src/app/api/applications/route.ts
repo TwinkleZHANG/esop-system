@@ -73,13 +73,15 @@ export async function POST(request: Request) {
       )
     }
 
-    // 验证申请数量
-    const qtyDecimal = BigInt(parseFloat(quantity) * 10000) // 转换为整数处理精度
-    const grantQty = BigInt(grant.quantity.toString().replace('.', ''))
+    // 验证申请数量（基于剩余数量）
+    const requestedQty = parseFloat(quantity)
+    const totalQty = parseFloat(grant.quantity.toString())
+    const processedQty = grant.processedQty ? parseFloat(grant.processedQty.toString()) : 0
+    const remainingQty = totalQty - processedQty
 
-    if (qtyDecimal <= 0 || qtyDecimal > grantQty) {
+    if (requestedQty <= 0 || requestedQty > remainingQty) {
       return NextResponse.json(
-        { error: 'Invalid quantity' },
+        { error: `Invalid quantity. Available: ${remainingQty}, Requested: ${requestedQty}` },
         { status: 400 }
       )
     }

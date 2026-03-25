@@ -70,6 +70,7 @@ interface Grant {
     type: PlanType
   }
   quantity: string
+  processedQty: string | null
   strikePrice: string | null
   grantDate: string
   vestingStartDate: string
@@ -176,10 +177,11 @@ export default function EmployeePage() {
 
   // 打开申请弹窗
   const openApplyModal = (grant: Grant) => {
+    const remainingQty = getRemainingQty(grant)
     setSelectedGrant(grant)
     setApplyForm({
       type: grant.plan.type === 'OPTION' ? 'EXERCISE' : 'TRANSFER',
-      quantity: grant.quantity,
+      quantity: remainingQty.toString(),
       remark: '',
     })
     setShowApplyModal(true)
@@ -223,21 +225,23 @@ export default function EmployeePage() {
   // 获取可申请的操作类型
   const getAvailableActions = (grant: Grant) => {
     if (grant.status !== 'VESTED') return []
+    const remainingQty = getRemainingQty(grant)
+    if (remainingQty <= 0) return []
 
     switch (grant.plan.type) {
       case 'OPTION':
-        return [{ value: 'EXERCISE', label: '申请行权' }]
+        return [{ value: 'EXERCISE', label: `申请行权 (${remainingQty.toLocaleString()}股可用)` }]
       case 'RSU':
         return [
-          { value: 'TRANSFER', label: '申请转让' },
+          { value: 'TRANSFER', label: `申请转让 (${remainingQty.toLocaleString()}股可用)` },
           { value: 'DIVIDEND', label: '申请分红' },
         ]
       case 'LP_SHARE':
       case 'VIRTUAL_SHARE':
         return [
-          { value: 'TRANSFER', label: '申请转让' },
+          { value: 'TRANSFER', label: `申请转让 (${remainingQty.toLocaleString()}股可用)` },
           { value: 'DIVIDEND', label: '申请分红' },
-          { value: 'REDEEM', label: '申请赎回' },
+          { value: 'REDEEM', label: `申请赎回 (${remainingQty.toLocaleString()}股可用)` },
         ]
       default:
         return []
@@ -250,6 +254,13 @@ export default function EmployeePage() {
         <div className="text-gray-500">加载中...</div>
       </div>
     )
+  }
+
+  // 计算剩余可申请数量
+  const getRemainingQty = (grant: Grant) => {
+    const total = parseFloat(grant.quantity)
+    const processed = grant.processedQty ? parseFloat(grant.processedQty.toString()) : 0
+    return total - processed
   }
 
   return (
@@ -270,36 +281,17 @@ export default function EmployeePage() {
                 <span>税务居住地: {employee.taxJurisdiction}</span>
               </div>
             </div>
+            <div className="text-right">
+              <p className="text-sm text-gray-500">权益概览</p>
+              <div className="flex gap-4 mt-1 text-sm">
+                <span className="text-green-600">已归属: {overview.vested.toLocaleString()}</span>
+                <span className="text-orange-600">归属中: {overview.vesting.toLocaleString()}</span>
+                <span className="text-blue-600">待行权: {overview.exercisable.toLocaleString()}</span>
+              </div>
+            </div>
           </div>
         </div>
       )}
-
-      {/* 权益概览 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <p className="text-sm text-gray-500">已归属权益</p>
-          <p className="text-3xl font-bold text-green-600 mt-1">{overview.vested.toLocaleString()}</p>
-          <p className="text-sm text-gray-400 mt-1">股</p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <p className="text-sm text-gray-500">归属中权益</p>
-          <p className="text-3xl font-bold text-orange-600 mt-1">{overview.vesting.toLocaleString()}</p>
-          <p className="text-sm text-gray-400 mt-1">股</p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <p className="text-sm text-gray-500">待行权权益</p>
-          <p className="text-3xl font-bold text-blue-600 mt-1">{overview.exercisable.toLocaleString()}</p>
-          <p className="text-sm text-gray-400 mt-1">股</p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <p className="text-sm text-gray-500">已行权权益</p>
-          <p className="text-3xl font-bold text-purple-600 mt-1">{overview.exercised.toLocaleString()}</p>
-          <p className="text-sm text-gray-400 mt-1">股</p>
-        </div>
-      </div>
 
       {/* 授予记录 */}
       <div className="bg-white rounded-lg shadow-sm p-6">
@@ -541,11 +533,11 @@ export default function EmployeePage() {
                     type="number"
                     value={applyForm.quantity}
                     onChange={(e) => setApplyForm({ ...applyForm, quantity: e.target.value })}
-                    max={selectedGrant.quantity}
+                    max={getRemainingQty(selectedGrant)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    最大可申请: {parseFloat(selectedGrant.quantity).toLocaleString()} 股
+                    剩余可申请: {getRemainingQty(selectedGrant).toLocaleString()} 股（总计 {parseFloat(selectedGrant.quantity).toLocaleString()} 股）
                   </p>
                 </div>
 

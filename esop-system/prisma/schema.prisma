@@ -95,6 +95,7 @@ model Grant {
   vestingEndDate   DateTime?
   status           GrantStatus    @default(DRAFT)
   type             PlanType
+  processedQty     Decimal        @default(0) @db.Decimal(20, 4) // 已处理数量（行权/转让/赎回）
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   applications     Application[]

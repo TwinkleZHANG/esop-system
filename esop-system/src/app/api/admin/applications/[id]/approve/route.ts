@@ -91,6 +91,16 @@ export async function POST(
     const oldStatus = application.grant.status
     const { grant, employeeId, type, quantity, price } = application
 
+    // 计算新的已处理数量
+    const processedQty = grant.processedQty ? parseFloat(grant.processedQty.toString()) : 0
+    const requestedQty = parseFloat(quantity.toString())
+    const newProcessedQty = processedQty + requestedQty
+    const totalQty = parseFloat(grant.quantity.toString())
+
+    // 确定是否全部处理完毕
+    const isFullyProcessed = newProcessedQty >= totalQty
+    const newStatus = isFullyProcessed ? targetStatus : grant.status
+
     // 使用事务执行所有操作
     const result = await prisma.$transaction(async (tx) => {
       // 1. 更新申请状态
@@ -104,10 +114,13 @@ export async function POST(
         },
       })
 
-      // 2. 更新授予状态
+      // 2. 更新授予状态和处理数量
       const updatedGrant = await tx.grant.update({
         where: { id: grant.id },
-        data: { status: targetStatus },
+        data: {
+          status: newStatus,
+          processedQty: newProcessedQty,
+        },
       })
 
       // 3. 记录状态变更日志
@@ -116,9 +129,11 @@ export async function POST(
           entityType: 'Grant',
           entityId: grant.id,
           action: 'STATUS_CHANGE',
-          oldValue: { status: oldStatus },
+          oldValue: { status: oldStatus, processedQty: processedQty },
           newValue: {
-            status: targetStatus,
+            status: newStatus,
+            processedQty: newProcessedQty,
+            requestedQty: requestedQty,
             triggeredBy: 'APPLICATION_APPROVED',
             applicationId: id,
           },
@@ -187,9 +202,13 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: 'Application approved successfully',
+      message: isFullyProcessed
+        ? 'Application approved successfully - Grant fully processed'
+        : 'Application approved successfully - Partial processing',
       application: result.updatedApplication,
       grant: result.updatedGrant,
+      isFullyProcessed,
+      remainingQty: totalQty - newProcessedQty,
     })
   } catch (error) {
     console.error('Failed to approve application:', error)

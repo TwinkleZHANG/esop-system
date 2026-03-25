@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { PlanType, GrantStatus } from '@prisma/client'
+import { PlanType, GrantStatus, ApplicationType, ApplicationStatus } from '@prisma/client'
 
 interface Grant {
   id: string
@@ -16,26 +16,109 @@ interface Grant {
   employee?: { name: string; employeeId: string }
 }
 
+interface Application {
+  id: string
+  type: ApplicationType
+  quantity: string
+  status: ApplicationStatus
+  remark: string | null
+  createdAt: string
+  grant: {
+    plan: { title: string }
+    employee: { name: string; employeeId: string }
+  }
+}
+
+const applicationTypeLabels: Record<ApplicationType, string> = {
+  EXERCISE: '行权',
+  TRANSFER: '转让',
+  DIVIDEND: '分红',
+  REDEEM: '赎回',
+}
+
+const applicationStatusLabels: Record<ApplicationStatus, string> = {
+  PENDING: '待审批',
+  APPROVED: '已批准',
+  REJECTED: '已拒绝',
+  CANCELLED: '已取消',
+}
+
 export default function GrantsPage() {
   const [grants, setGrants] = useState<Grant[]>([])
+  const [applications, setApplications] = useState<Application[]>([])
   const [loading, setLoading] = useState(true)
+  const [processingId, setProcessingId] = useState<string | null>(null)
 
   useEffect(() => {
-    async function fetchGrants() {
+    async function fetchData() {
       try {
-        const res = await fetch('/api/grants')
-        const data = await res.json()
-        if (Array.isArray(data)) {
-          setGrants(data)
+        const [grantsRes, appsRes] = await Promise.all([
+          fetch('/api/grants'),
+          fetch('/api/admin/applications?status=PENDING'),
+        ])
+        const grantsData = await grantsRes.json()
+        const appsData = await appsRes.json()
+        if (Array.isArray(grantsData)) {
+          setGrants(grantsData)
+        }
+        if (Array.isArray(appsData)) {
+          setApplications(appsData)
         }
       } catch (err) {
-        console.error('Failed to fetch grants:', err)
+        console.error('Failed to fetch data:', err)
       } finally {
         setLoading(false)
       }
     }
-    fetchGrants()
+    fetchData()
   }, [])
+
+  const handleApprove = async (id: string) => {
+    setProcessingId(id)
+    try {
+      const res = await fetch(`/api/admin/applications/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewerId: 'admin', reviewRemark: 'Approved' }),
+      })
+      if (res.ok) {
+        alert('申请已批准')
+        setApplications((prev) => prev.filter((app) => app.id !== id))
+      } else {
+        const error = await res.json()
+        alert(error.error || '审批失败')
+      }
+    } catch (err) {
+      alert('审批失败')
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleReject = async (id: string) => {
+    const remark = prompt('请输入拒绝原因：')
+    if (!remark) return
+
+    setProcessingId(id)
+    try {
+      const res = await fetch(`/api/admin/applications/${id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewerId: 'admin', reviewRemark: remark }),
+      })
+      if (res.ok) {
+        alert('申请已拒绝')
+        setApplications((prev) => prev.filter((app) => app.id !== id))
+      } else {
+        const error = await res.json()
+        alert(error.error || '操作失败')
+      }
+    } catch (err) {
+      alert('操作失败')
+    } finally {
+      setProcessingId(null)
+    }
+  }
 
   const typeLabels: Record<PlanType, string> = {
     RSU: 'RSU',
@@ -86,6 +169,73 @@ export default function GrantsPage() {
         </a>
       </div>
       
+      {/* 待审批申请 */}
+      {applications.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-yellow-800 mb-4 flex items-center gap-2">
+            <span>📋</span>
+            待审批申请 ({applications.length})
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-yellow-200">
+                  <th className="text-left py-3 px-4 text-sm font-medium text-yellow-700">员工</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-yellow-700">计划</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-yellow-700">申请类型</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-yellow-700">数量</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-yellow-700">申请时间</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-yellow-700">备注</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-yellow-700">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {applications.map((app) => (
+                  <tr key={app.id} className="border-b border-yellow-100">
+                    <td className="py-3 px-4 text-sm text-yellow-900">
+                      {app.grant.employee?.name || '-'}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-yellow-700">
+                      {app.grant.plan?.title || '-'}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-yellow-700">
+                      {applicationTypeLabels[app.type]}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-yellow-900 text-right">
+                      {parseFloat(app.quantity).toLocaleString()}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-yellow-700">
+                      {new Date(app.createdAt).toLocaleDateString('zh-CN')}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-yellow-600 truncate max-w-xs">
+                      {app.remark || '-'}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleApprove(app.id)}
+                          disabled={processingId === app.id}
+                          className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50"
+                        >
+                          {processingId === app.id ? '处理中...' : '批准'}
+                        </button>
+                        <button
+                          onClick={() => handleReject(app.id)}
+                          disabled={processingId === app.id}
+                          className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 disabled:opacity-50"
+                        >
+                          拒绝
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* 筛选器 */}
       <div className="bg-white rounded-lg shadow-sm p-4">
         <div className="flex gap-4">
