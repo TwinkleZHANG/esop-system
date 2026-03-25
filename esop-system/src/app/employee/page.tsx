@@ -115,8 +115,8 @@ interface TaxEvent {
   }
 }
 
-// 张三的 employeeId
-const ZHANG_SAN_EMP_ID = 'EMP001'
+// 王五的 employeeId
+const WANG_WU_EMP_ID = 'EMP003'
 
 export default function EmployeePage() {
   const [employee, setEmployee] = useState<Employee | null>(null)
@@ -138,10 +138,10 @@ export default function EmployeePage() {
     async function fetchData() {
       try {
         const [empRes, grantsRes, appsRes, taxRes] = await Promise.all([
-          fetch(`/api/employee/me?employeeId=${ZHANG_SAN_EMP_ID}`),
-          fetch(`/api/employee/grants?employeeId=${ZHANG_SAN_EMP_ID}`),
-          fetch(`/api/applications/my?employeeId=${ZHANG_SAN_EMP_ID}`),
-          fetch(`/api/employee/tax-events?employeeId=${ZHANG_SAN_EMP_ID}`),
+          fetch(`/api/employee/me?employeeId=${WANG_WU_EMP_ID}`),
+          fetch(`/api/employee/grants?employeeId=${WANG_WU_EMP_ID}`),
+          fetch(`/api/applications/my?employeeId=${WANG_WU_EMP_ID}`),
+          fetch(`/api/employee/tax-events?employeeId=${WANG_WU_EMP_ID}`),
         ])
 
         if (empRes.ok) setEmployee(await empRes.json())
@@ -207,7 +207,7 @@ export default function EmployeePage() {
         alert('申请提交成功！')
         setShowApplyModal(false)
         // 刷新申请列表
-        const appsRes = await fetch(`/api/applications/my?employeeId=${ZHANG_SAN_EMP_ID}`)
+        const appsRes = await fetch(`/api/applications/my?employeeId=${WANG_WU_EMP_ID}`)
         if (appsRes.ok) setApplications(await appsRes.json())
       } else {
         const error = await res.json()
