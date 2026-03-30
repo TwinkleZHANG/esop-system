@@ -161,7 +161,8 @@ export async function POST(
         },
       })
 
-      const assetTxType = type === 'EXERCISE' ? 'ISSUANCE' : 'SETTLEMENT'
+      // 确定交易类型
+      const assetTxType: AssetTxType = 'SETTLEMENT'
 
       if (assetPosition) {
         // 更新现有持仓
@@ -176,24 +177,28 @@ export async function POST(
         // 创建新持仓
         assetPosition = await tx.assetPosition.create({
           data: {
+            accountId: `ACC-${Date.now()}`,
             employeeId: grant.employeeId,
             assetType: getAssetType(grant.plan.type),
             quantity,
-            costBasis: price || grant.strikePrice || null,
           },
         })
       }
 
       // 6. 创建资产流水
+      const trxId = `TRX-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-001`
+      const currentBalance = parseFloat(assetPosition.quantity.toString())
       await tx.assetTransaction.create({
         data: {
+          trxId,
           positionId: assetPosition.id,
-          txType: assetTxType,
+          changeType: assetTxType,
           quantity,
-          price: price || grant.strikePrice,
+          costBasis: price || grant.strikePrice,
+          balanceAfter: currentBalance,
+          tradeDate: new Date(),
           relatedGrantId: grant.id,
           relatedTaxEventId: taxEvent.id,
-          txDate: new Date(),
         },
       })
 
