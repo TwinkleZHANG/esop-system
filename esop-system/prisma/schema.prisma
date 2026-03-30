@@ -38,6 +38,7 @@ model Employee {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
   grants           Grant[]
+  assetPositions   AssetPosition[]
 
   @@map("employees")
 }
@@ -65,8 +66,9 @@ model HoldingEntity {
   type           String
   jurisdiction   Jurisdiction
   description    String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  assetPositions AssetPosition[]
 
   @@map("holding_entities")
 }
@@ -162,29 +164,43 @@ model Application {
 
 /// 资产持仓
 model AssetPosition {
-  id              String    @id @default(cuid())
+  id              String        @id @default(cuid())
+  accountId       String        @unique // Asset_Account_ID 展示用
   employeeId      String
+  employee        Employee      @relation(fields: [employeeId], references: [id])
   holdingEntityId String?
+  holdingEntity   HoldingEntity? @relation(fields: [holdingEntityId], references: [id])
+
   assetType       AssetType
-  quantity        Decimal   @db.Decimal(20, 4)
-  costBasis       Decimal?  @db.Decimal(20, 4)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  quantity        Decimal       @db.Decimal(20, 4)  // 持有股数，固定不变
+  currency        String        @default("CNY")
+  status          AccountStatus @default(ACTIVE)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  transactions    AssetTransaction[]
 
   @@map("asset_positions")
 }
 
 /// 资产流水
 model AssetTransaction {
-  id                String      @id @default(cuid())
-  positionId        String
-  txType            AssetTxType
-  quantity          Decimal     @db.Decimal(20, 4)
-  price             Decimal?    @db.Decimal(20, 4)
-  relatedGrantId    String?
-  relatedTaxEventId String?
-  txDate            DateTime
-  createdAt         DateTime    @default(now())
+  id              String        @id @default(cuid())
+  trxId           String        @unique // TRX-日期-序号 展示用
+  positionId      String
+  position        AssetPosition @relation(fields: [positionId], references: [id])
+
+  changeType      AssetTxType
+  quantity        Decimal       @db.Decimal(20, 4) // 带符号，入账+，出账-
+  costBasis       Decimal?      @db.Decimal(20, 4) // 交易时FMV单价
+  balanceAfter    Decimal       @db.Decimal(20, 4) // 交易后余额快照
+  tradeDate       DateTime
+
+  relatedGrantId     String?
+  relatedTaxEventId  String?
+
+  createdAt       DateTime      @default(now())
 
   @@map("asset_transactions")
 }
@@ -276,11 +292,18 @@ enum AssetType {
   VIRTUAL_SHARE
 }
 
+enum AccountStatus {
+  ACTIVE      // 正常
+  FROZEN      // 冻结
+  CANCELLED   // 注销
+}
+
 enum AssetTxType {
-  ISSUANCE
-  SETTLEMENT
-  REPURCHASE
-  TRANSFER
+  SETTLEMENT   // 交割入账 +
+  REPURCHASE   // 回购 -
+  DIVIDEND     // 分红 +
+  REDEEM       // 兑现 -
+  CANCEL       // 注销 -
 }
 
 enum ApplicationType {

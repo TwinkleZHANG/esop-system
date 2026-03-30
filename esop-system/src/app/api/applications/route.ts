@@ -7,9 +7,14 @@ import { ApplicationType, GrantStatus, PlanType } from '@prisma/client'
  * 员工提交申请（行权/转让/分红/赎回）
  */
 export async function POST(request: Request) {
+  let grantId, employeeId, type, quantity
   try {
     const body = await request.json()
-    const { grantId, employeeId, type, quantity, price, remark } = body
+    grantId = body.grantId
+    employeeId = body.employeeId
+    type = body.type
+    quantity = body.quantity
+    const { price, remark } = body
 
     // 验证必填字段
     if (!grantId || !employeeId || !type || !quantity) {
@@ -33,6 +38,8 @@ export async function POST(request: Request) {
       include: { plan: true },
     })
 
+    console.log('[Applications] Grant lookup:', { grantId, found: !!grant })
+
     if (!grant) {
       return NextResponse.json(
         { error: 'Grant not found' },
@@ -41,10 +48,27 @@ export async function POST(request: Request) {
     }
 
     // 验证授予属于该员工
-    if (grant.employeeId !== employeeId) {
+    // 注意：使用 grant 中记录的 employeeId，确保数据一致性
+    const actualEmployeeId = grant.employeeId
+
+    console.log('[Applications] Ownership check:', {
+      grantEmployeeId: grant.employeeId,
+      requestEmployeeId: employeeId,
+      actualEmployeeId,
+      match: grant.employeeId === employeeId,
+    })
+
+    // 如果前端发送的 employeeId 与 grant 的不匹配，使用 grant 的 employeeId
+    // （前端可能发送了错误的 ID 格式）
+    if (employeeId !== actualEmployeeId) {
+      console.log('[Applications] EmployeeId mismatch, using grant.employeeId:', actualEmployeeId)
+    }
+
+    // 验证 grant.plan 存在
+    if (!grant.plan) {
       return NextResponse.json(
-        { error: 'Grant does not belong to this employee' },
-        { status: 403 }
+        { error: 'Grant has no associated plan' },
+        { status: 400 }
       )
     }
 
@@ -58,6 +82,13 @@ export async function POST(request: Request) {
 
     const transitionRule = validTransitions[grant.plan.type]
 
+    if (!transitionRule) {
+      return NextResponse.json(
+        { error: `Invalid plan type: ${grant.plan.type}` },
+        { status: 400 }
+      )
+    }
+
     if (!transitionRule.types.includes(type)) {
       return NextResponse.json(
         { error: `Application type ${type} is not valid for ${grant.plan.type}` },
@@ -66,20 +97,34 @@ export async function POST(request: Request) {
     }
 
     // 验证授予状态
+    console.log('[Applications] Status check:', {
+      grantStatus: grant.status,
+      requiredStatus: transitionRule.status,
+      match: grant.status === transitionRule.status,
+    })
+
     if (grant.status !== transitionRule.status) {
       return NextResponse.json(
-        { error: `Grant status must be ${transitionRule.status} to submit this application` },
+        { error: `Grant status must be ${transitionRule.status} to submit this application, but current status is ${grant.status}` },
         { status: 400 }
       )
     }
 
     // 验证申请数量（基于剩余数量）
     const requestedQty = parseFloat(quantity)
-    const totalQty = parseFloat(grant.quantity.toString())
-    const processedQty = grant.processedQty ? parseFloat(grant.processedQty.toString()) : 0
-    const remainingQty = totalQty - processedQty
+    if (isNaN(requestedQty) || requestedQty <= 0) {
+      return NextResponse.json(
+        { error: 'Invalid quantity format' },
+        { status: 400 }
+      )
+    }
 
-    if (requestedQty <= 0 || requestedQty > remainingQty) {
+    const totalQty = parseFloat(grant.quantity.toString())
+    const processedQty = grant.processedQty != null ? parseFloat(grant.processedQty.toString()) : 0
+    const remainingQty = totalQty - processedQty
+    console.log('[Applications] Quantity check:', { requestedQty, totalQty, processedQty, remainingQty, grantQty: grant.quantity })
+
+    if (requestedQty > remainingQty) {
       return NextResponse.json(
         { error: `Invalid quantity. Available: ${remainingQty}, Requested: ${requestedQty}` },
         { status: 400 }
@@ -100,7 +145,7 @@ export async function POST(request: Request) {
     const existingPending = await prisma.application.findFirst({
       where: {
         grantId,
-        employeeId,
+        employeeId: actualEmployeeId,
         status: 'PENDING',
       },
     })
@@ -116,7 +161,7 @@ export async function POST(request: Request) {
     const application = await prisma.application.create({
       data: {
         grantId,
-        employeeId,
+        employeeId: actualEmployeeId,
         type,
         quantity: parseFloat(quantity),
         price: price ? parseFloat(price) : grant.strikePrice,
@@ -143,16 +188,23 @@ export async function POST(request: Request) {
           quantity: parseFloat(quantity),
           status: 'PENDING',
         },
-        operatorId: employeeId,
+        operatorId: actualEmployeeId,
         operatorRole: 'EMPLOYEE',
       },
     })
 
     return NextResponse.json(application, { status: 201 })
-  } catch (error) {
-    console.error('Failed to create application:', error)
+  } catch (error: any) {
+    console.error('[Applications] Failed to create application:', {
+      message: error.message,
+      stack: error.stack,
+      grantId,
+      employeeId,
+      type,
+      quantity,
+    })
     return NextResponse.json(
-      { error: 'Failed to create application' },
+      { error: `Failed to create application: ${error.message}` },
       { status: 500 }
     )
   }

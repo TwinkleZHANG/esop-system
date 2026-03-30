@@ -13,6 +13,8 @@ async function main() {
   console.log('🌱 开始填充示例数据...')
 
   // 清理现有数据
+  await prisma.assetTransaction.deleteMany()
+  await prisma.assetPosition.deleteMany()
   await prisma.vestingEvent.deleteMany()
   await prisma.taxEvent.deleteMany()
   await prisma.grant.deleteMany()
@@ -20,6 +22,7 @@ async function main() {
   await prisma.plan.deleteMany()
   await prisma.valuation.deleteMany()
   await prisma.holdingEntity.deleteMany()
+  await prisma.employmentEntity.deleteMany()
 
   // 创建示例激励计划
   const plan1 = await prisma.plan.create({
@@ -258,6 +261,57 @@ async function main() {
     },
   })
   console.log('✅ 创建授予 (SETTLED):', grant4.id.slice(-6))
+
+  // 资产持仓示例数据
+  const assetPosition1 = await prisma.assetPosition.create({
+    data: {
+      accountId: 'ACC-001',
+      employeeId: employees[0].id,  // 张三
+      holdingEntityId: holdingEntity.id,
+      assetType: 'COMMON_SHARE',
+      quantity: 8000,  // 持有8000股
+      currency: 'CNY',
+      status: 'ACTIVE',
+    }
+  })
+  await prisma.assetTransaction.create({
+    data: {
+      trxId: 'TRX-20230101-001',
+      positionId: assetPosition1.id,
+      changeType: 'SETTLEMENT',
+      quantity: 8000,      // +8000股
+      costBasis: 10.5,     // 交割时FMV
+      balanceAfter: 8000,
+      tradeDate: new Date('2023-01-01'),
+      relatedGrantId: grant4.id,
+    }
+  })
+  console.log('✅ 创建资产账户 ACC-001 (张三, 8000股)')
+
+  const assetPosition2 = await prisma.assetPosition.create({
+    data: {
+      accountId: 'ACC-002',
+      employeeId: employees[2].id,  // 王五
+      holdingEntityId: holdingEntity.id,
+      assetType: 'COMMON_SHARE',
+      quantity: 15000,  // 持有15000股
+      currency: 'CNY',
+      status: 'ACTIVE',
+    }
+  })
+  await prisma.assetTransaction.create({
+    data: {
+      trxId: 'TRX-20240101-001',
+      positionId: assetPosition2.id,
+      changeType: 'SETTLEMENT',
+      quantity: 15000,     // +15000股
+      costBasis: 5.0,      // 行权价
+      balanceAfter: 15000,
+      tradeDate: new Date('2024-01-01'),
+      relatedGrantId: grant3.id,
+    }
+  })
+  console.log('✅ 创建资产账户 ACC-002 (王五, 15000股)')
 
   console.log('🎉 示例数据填充完成！')
   console.log('📊 授予状态分布: DRAFT=1, VESTING=1, VESTED=1, SETTLED=1')
