@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/db/prisma'
+import { calculateVestingSchedule } from '@/lib/vesting'
 
 export async function GET() {
   try {
@@ -28,7 +29,9 @@ export async function POST(request: Request) {
       strikePrice,
       grantDate,
       vestingStartDate,
-      vestingEndDate,
+      vestingYear,
+      cliffPeriod,
+      vestingFrequency,
       type,
       status,
     } = body
@@ -72,6 +75,12 @@ export async function POST(request: Request) {
       )
     }
 
+    const vestingStart = new Date(vestingStartDate || grantDate)
+    const parsedVestingYear = vestingYear ? parseInt(vestingYear) : null
+    const vestingEndDate = parsedVestingYear
+      ? new Date(new Date(vestingStart).setFullYear(vestingStart.getFullYear() + parsedVestingYear))
+      : undefined
+
     const grant = await prisma.grant.create({
       data: {
         planId,
@@ -79,12 +88,17 @@ export async function POST(request: Request) {
         quantity,
         strikePrice: plan.type === 'OPTION' ? strikePrice : null,
         grantDate: new Date(grantDate),
-        vestingStartDate: new Date(vestingStartDate || grantDate),
-        vestingEndDate: vestingEndDate ? new Date(vestingEndDate) : undefined,
+        vestingStartDate: vestingStart,
+        vestingEndDate,
+        vestingYear: parsedVestingYear,
+        cliffPeriod: cliffPeriod ? parseInt(cliffPeriod) : 0,
+        vestingFrequency: vestingFrequency || null,
         type: type || plan.type,
         status: status || 'DRAFT',
       },
     })
+
+    // 草稿阶段不生成归属事件，等状态变为"已授予"时再生成
 
     return NextResponse.json(grant, { status: 201 })
   } catch (error) {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { GrantStatus, PlanType, VestingStatus, TaxEventStatus, TaxEventType } from '@prisma/client'
 import {
@@ -37,6 +37,9 @@ interface Grant {
   grantDate: string
   vestingStartDate: string
   vestingEndDate: string | null
+  vestingYear: number | null
+  cliffPeriod: number | null
+  vestingFrequency: string | null
   status: GrantStatus
   type: PlanType
   createdAt: string
@@ -154,7 +157,16 @@ export default function GrantDetailPage() {
       const res = await fetch(`/api/grants/${grant.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editData),
+        body: JSON.stringify({
+          quantity: editData.quantity,
+          strikePrice: editData.strikePrice,
+          grantDate: editData.grantDate,
+          vestingStartDate: editData.vestingStartDate,
+          vestingYear: editData.vestingYear,
+          cliffPeriod: editData.cliffPeriod,
+          vestingFrequency: editData.vestingFrequency,
+          status: editData.status,
+        }),
       })
       if (res.ok) {
         alert('保存成功！')
@@ -279,7 +291,7 @@ export default function GrantDetailPage() {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2"
               />
             ) : (
-              <p className="text-gray-900">{grant.strikePrice ? `¥${grant.strikePrice}` : '-'}</p>
+              <p className="text-gray-900">{grant.strikePrice ? `HKD ${grant.strikePrice}` : '-'}</p>
             )}
           </div>
 
@@ -312,20 +324,6 @@ export default function GrantDetailPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1">归属结束日期</label>
-            {isEditing ? (
-              <input
-                type="date"
-                value={editData.vestingEndDate?.split('T')[0] || ''}
-                onChange={(e) => setEditData({ ...editData, vestingEndDate: e.target.value || null })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              />
-            ) : (
-              <p className="text-gray-900">{grant.vestingEndDate ? new Date(grant.vestingEndDate).toLocaleDateString('zh-CN') : '-'}</p>
-            )}
-          </div>
-
-          <div>
             <label className="block text-sm font-medium text-gray-500 mb-1">状态</label>
             <p className="text-gray-900">{statusLabels[grant.status]}</p>
           </div>
@@ -334,12 +332,115 @@ export default function GrantDetailPage() {
             <label className="block text-sm font-medium text-gray-500 mb-1">创建时间</label>
             <p className="text-gray-900">{new Date(grant.createdAt).toLocaleString('zh-CN')}</p>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-500 mb-1">归属年限 (Vesting_Year)</label>
+            {isEditing ? (
+              <select
+                value={editData.vestingYear ?? grant.vestingYear ?? ''}
+                onChange={(e) => setEditData({ ...editData, vestingYear: e.target.value ? parseInt(e.target.value) : null })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              >
+                <option value="">未设置</option>
+                <option value="1">1年</option>
+                <option value="2">2年</option>
+                <option value="3">3年</option>
+                <option value="4">4年</option>
+                <option value="5">5年</option>
+              </select>
+            ) : (
+              <p className="text-gray-900">{grant.vestingYear ? `${grant.vestingYear}年` : '-'}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-500 mb-1">悬崖期 (Cliff_Period)</label>
+            {isEditing ? (
+              <select
+                value={editData.cliffPeriod ?? grant.cliffPeriod ?? ''}
+                onChange={(e) => setEditData({ ...editData, cliffPeriod: e.target.value ? parseInt(e.target.value) : null })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              >
+                <option value="0">无悬崖期</option>
+                <option value="6">6个月</option>
+                <option value="12">1年</option>
+                <option value="18">1.5年</option>
+                <option value="24">2年</option>
+              </select>
+            ) : (
+              <p className="text-gray-900">
+                {grant.cliffPeriod === 0 ? '无悬崖期' : grant.cliffPeriod ? `${grant.cliffPeriod}个月` : '-'}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-500 mb-1">归属频率 (Vesting_Frequency)</label>
+            {isEditing ? (
+              <select
+                value={editData.vestingFrequency ?? grant.vestingFrequency ?? ''}
+                onChange={(e) => setEditData({ ...editData, vestingFrequency: e.target.value || null })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              >
+                <option value="">未设置</option>
+                <option value="MONTHLY">按月 (Monthly)</option>
+                <option value="YEARLY">按年 (Yearly)</option>
+              </select>
+            ) : (
+              <p className="text-gray-900">
+                {grant.vestingFrequency === 'MONTHLY' ? '按月 (Monthly)' : grant.vestingFrequency === 'YEARLY' ? '按年 (Yearly)' : '-'}
+              </p>
+            )}
+          </div>
         </div>
+
+        {/* 归属预览 */}
+        {grant.vestingYear && grant.quantity && (
+          <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+            <h3 className="text-sm font-medium text-blue-900 mb-2">归属预览</h3>
+            <div className="text-sm text-blue-800 space-y-1">
+              <p>总授予：{parseFloat(grant.quantity).toLocaleString()} 股</p>
+              <p>
+                归属期限：{grant.vestingYear}年
+                {grant.cliffPeriod && grant.cliffPeriod > 0 ? `（含${grant.cliffPeriod}个月悬崖期）` : ''}
+              </p>
+              <p>
+                归属频率：{grant.vestingFrequency === 'MONTHLY' ? '按月' : grant.vestingFrequency === 'YEARLY' ? '按年' : '-'}
+              </p>
+              {(() => {
+                const startDateStr = grant.vestingStartDate || grant.grantDate
+                if (startDateStr && grant.vestingYear) {
+                  const startDate = new Date(startDateStr)
+                  const endDate = new Date(startDate)
+                  endDate.setFullYear(endDate.getFullYear() + grant.vestingYear)
+                  return <p>归属结束日期：{endDate.toLocaleDateString('zh-CN')}</p>
+                }
+                return null
+              })()}
+              {grant.cliffPeriod && grant.cliffPeriod > 0 && grant.vestingYear && (
+                <p>
+                  悬崖期归属：
+                  {Math.floor(
+                    parseFloat(grant.quantity) *
+                      (grant.cliffPeriod / 12 / grant.vestingYear)
+                  ).toLocaleString()}{' '}
+                  股
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* 归属事件 */}
         <div className="pt-6 border-t">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">归属计划</h3>
-          {grant.vestingEvents.length === 0 ? (
+          {grant.status === 'DRAFT' ? (
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                当前为草稿状态，归属计划将在状态变更为「已授予」后正式生成。请在上方归属预览中确认归属参数。
+              </p>
+            </div>
+          ) : grant.vestingEvents.length === 0 ? (
             <p className="text-gray-500">暂无归属事件</p>
           ) : (
             <table className="min-w-full divide-y divide-gray-200">
@@ -580,28 +681,30 @@ export default function GrantDetailPage() {
             返回列表
           </a>
 
-          {isEditing ? (
-            <>
+          {grant.status === 'DRAFT' && (
+            isEditing ? (
+              <>
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleSave}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  保存
+                </button>
+              </>
+            ) : (
               <button
-                onClick={() => setIsEditing(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                onClick={() => setIsEditing(true)}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
               >
-                取消
+                编辑
               </button>
-              <button
-                onClick={handleSave}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                保存
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-            >
-              编辑
-            </button>
+            )
           )}
         </div>
       </div>

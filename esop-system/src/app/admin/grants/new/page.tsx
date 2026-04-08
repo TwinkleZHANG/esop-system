@@ -245,6 +245,9 @@ export default function NewGrantPage() {
         grantDate: formData.grantDate,
         vestingStartDate: formData.vestingStartDate || formData.grantDate,
         vestingEndDate: vestingEndDate,
+        vestingYear: formData.vestingYear,
+        cliffPeriod: formData.cliffPeriod,
+        vestingFrequency: formData.vestingFrequency,
         status: formData.status,
         type: selectedPlan?.type,
       }
@@ -471,7 +474,7 @@ export default function NewGrantPage() {
                   required={selectedPlan?.type === 'OPTION'}
                 />
                 <span className="border border-l-0 border-gray-300 rounded-r-lg px-3 py-2 bg-gray-50 text-gray-500">
-                  USD
+                  HKD
                 </span>
               </div>
               {selectedPlan && selectedPlan.type !== 'OPTION' && (

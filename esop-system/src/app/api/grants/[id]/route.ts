@@ -38,6 +38,20 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
+    // Auto-calculate vestingEndDate from vestingStartDate + vestingYear
+    let vestingEndDate: Date | null | undefined = undefined
+    if (body.vestingYear !== undefined) {
+      const existing = await prisma.grant.findUnique({ where: { id }, select: { vestingStartDate: true, grantDate: true } })
+      const startDate = body.vestingStartDate ? new Date(body.vestingStartDate) : existing?.vestingStartDate || existing?.grantDate
+      if (startDate && body.vestingYear) {
+        const endDate = new Date(startDate)
+        endDate.setFullYear(endDate.getFullYear() + body.vestingYear)
+        vestingEndDate = endDate
+      } else {
+        vestingEndDate = null
+      }
+    }
+
     const grant = await prisma.grant.update({
       where: { id },
       data: {
@@ -45,7 +59,10 @@ export async function PUT(
         strikePrice: body.strikePrice,
         grantDate: body.grantDate ? new Date(body.grantDate) : undefined,
         vestingStartDate: body.vestingStartDate ? new Date(body.vestingStartDate) : undefined,
-        vestingEndDate: body.vestingEndDate ? new Date(body.vestingEndDate) : null,
+        vestingEndDate,
+        vestingYear: body.vestingYear !== undefined ? body.vestingYear : undefined,
+        cliffPeriod: body.cliffPeriod !== undefined ? body.cliffPeriod : undefined,
+        vestingFrequency: body.vestingFrequency !== undefined ? body.vestingFrequency : undefined,
         status: body.status,
       },
       include: {

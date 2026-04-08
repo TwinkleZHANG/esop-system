@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/db/prisma'
 import { canTransition } from '@/lib/state-machine/grant-state-machine'
 import { GrantStatus } from '@prisma/client'
+import { calculateVestingSchedule } from '@/lib/vesting'
 
 // 状态变更
 export async function PUT(
@@ -53,6 +54,29 @@ export async function PUT(
         status: newStatus as GrantStatus,
       },
     })
+
+    // 流转到"已授予"时，根据当前参数正式生成归属事件
+    if (newStatus === 'GRANTED' && grant.vestingYear && grant.vestingFrequency) {
+      // 先清除可能存在的旧归属事件
+      await prisma.vestingEvent.deleteMany({ where: { grantId: id } })
+
+      const schedule = calculateVestingSchedule(
+        Number(grant.quantity),
+        new Date(grant.vestingStartDate),
+        grant.vestingYear,
+        grant.cliffPeriod ?? 0,
+        grant.vestingFrequency
+      )
+      await prisma.vestingEvent.createMany({
+        data: schedule.events.map((event) => ({
+          grantId: id,
+          vestDate: event.date,
+          quantity: event.quantity,
+          cumulativeQty: event.cumulativeQuantity,
+          status: 'PENDING',
+        })),
+      })
+    }
 
     // 记录状态变更日志
     await prisma.auditLog.create({
