@@ -20,7 +20,7 @@ export async function GET() {
       prisma.grant.count(),
       prisma.grant.count({ where: { status: 'GRANTED' } }),
       prisma.taxEvent.count(),
-      prisma.taxEvent.count({ where: { status: 'TRIGGERED' } }),
+      prisma.taxEvent.count({ where: { status: 'PENDING' } }),
     ])
 
     return NextResponse.json({

@@ -23,8 +23,7 @@ interface TaxEvent {
   taxableAmount: string | null
   taxAmount: string | null
   status: TaxEventStatus
-  exportFileUrl: string | null
-  importFileUrl: string | null
+  receiptFileUrl: string | null
   createdAt: string
   updatedAt: string
   grant: Grant
@@ -36,19 +35,15 @@ const typeLabels: Record<TaxEventType, string> = {
 }
 
 const statusLabels: Record<TaxEventStatus, string> = {
-  TRIGGERED: '已触发',
-  DATA_EXPORTED: '数据已导出',
-  DATA_IMPORTED: '数据已导入',
-  TAX_CONFIRMED: '税务已确认',
-  TAX_PAID: '税务已缴纳',
+  PENDING: '待缴款',
+  PAID: '已上传凭证',
+  CONFIRMED: '已确认',
 }
 
 const statusColors: Record<TaxEventStatus, string> = {
-  TRIGGERED: 'bg-yellow-100 text-yellow-800',
-  DATA_EXPORTED: 'bg-blue-100 text-blue-800',
-  DATA_IMPORTED: 'bg-purple-100 text-purple-800',
-  TAX_CONFIRMED: 'bg-green-100 text-green-800',
-  TAX_PAID: 'bg-gray-100 text-gray-800',
+  PENDING: 'bg-yellow-100 text-yellow-800',
+  PAID: 'bg-blue-100 text-blue-800',
+  CONFIRMED: 'bg-green-100 text-green-800',
 }
 
 const grantStatusLabels: Record<GrantStatus, string> = {
@@ -130,30 +125,18 @@ export default function TaxEventDetailPage() {
     }
   }
 
-  // 获取下一个状态
+  // 获取下一个状态（仅管理员可从 PAID → CONFIRMED）
   const getNextStatus = (currentStatus: TaxEventStatus): TaxEventStatus | null => {
-    const statusFlow: TaxEventStatus[] = [
-      'TRIGGERED',
-      'DATA_EXPORTED',
-      'DATA_IMPORTED',
-      'TAX_CONFIRMED',
-      'TAX_PAID',
-    ]
-    const currentIndex = statusFlow.indexOf(currentStatus)
-    if (currentIndex < statusFlow.length - 1) {
-      return statusFlow[currentIndex + 1]
-    }
+    if (currentStatus === 'PAID') return 'CONFIRMED'
     return null
   }
 
   // 获取状态流转按钮文本
   const getStatusButtonText = (status: TaxEventStatus): string => {
     const buttonTexts: Record<TaxEventStatus, string> = {
-      TRIGGERED: '导出数据',
-      DATA_EXPORTED: '导入数据',
-      DATA_IMPORTED: '确认税务',
-      TAX_CONFIRMED: '标记已缴纳',
-      TAX_PAID: '已完成',
+      PENDING: '等待员工上传凭证',
+      PAID: '确认缴款',
+      CONFIRMED: '已完成',
     }
     return buttonTexts[status]
   }
@@ -252,11 +235,9 @@ export default function TaxEventDetailPage() {
                 onChange={(e) => setEditData({ ...editData, status: e.target.value as TaxEventStatus })}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2"
               >
-                <option value="TRIGGERED">已触发</option>
-                <option value="DATA_EXPORTED">数据已导出</option>
-                <option value="DATA_IMPORTED">数据已导入</option>
-                <option value="TAX_CONFIRMED">税务已确认</option>
-                <option value="TAX_PAID">税务已缴纳</option>
+                <option value="PENDING">待缴款</option>
+                <option value="PAID">已上传凭证</option>
+                <option value="CONFIRMED">已确认</option>
               </select>
             ) : (
               <p className="text-gray-900">{statusLabels[taxEvent.status]}</p>
@@ -273,6 +254,22 @@ export default function TaxEventDetailPage() {
             <p className="text-gray-900">{new Date(taxEvent.updatedAt).toLocaleString('zh-CN')}</p>
           </div>
         </div>
+
+        {/* 缴款凭证 */}
+        {taxEvent.receiptFileUrl && (
+          <div className="pt-6 border-t">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">缴款凭证</h3>
+            <div className="p-4 bg-gray-50 rounded-lg">
+              {taxEvent.receiptFileUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                <img src={taxEvent.receiptFileUrl} alt="缴款凭证" className="max-w-md rounded border" />
+              ) : (
+                <a href={taxEvent.receiptFileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 flex items-center gap-2">
+                  查看凭证文件
+                </a>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* 关联授予信息 */}
         <div className="pt-6 border-t">

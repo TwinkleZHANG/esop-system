@@ -1,8 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useUserRole } from '@/components/RoleSwitcher'
+import { useRouter } from 'next/navigation'
 
 export default function NewPlanPage() {
+  const role = useUserRole()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (role !== 'ADMIN_CREATE') {
+      router.replace('/admin/plans')
+    }
+  }, [role])
+
   const [formData, setFormData] = useState({
     title: '',
     type: 'RSU',

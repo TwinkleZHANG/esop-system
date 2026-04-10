@@ -39,6 +39,7 @@ export async function PUT(
     const employee = await prisma.employee.update({
       where: { id },
       data: {
+        employeeId: body.employeeId,
         name: body.name,
         department: body.department,
         legalIdentity: body.legalIdentity,

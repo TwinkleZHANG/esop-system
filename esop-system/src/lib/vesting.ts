@@ -1,18 +1,11 @@
 /**
  * 归属计算服务
- * 
- * 支持的归属计划类型：
- * - 4_YEAR_1_YEAR_CLIFF: 4年归属 + 1年悬崖（满1年25%，之后每月1/36）
- * - 4_YEAR_MONTHLY: 4年月归属（无悬崖，每月1/48）
- * - 3_YEAR_1_YEAR_CLIFF: 3年归属 + 1年悬崖
- * - IMMEDIATE: 一次性归属
+ *
+ * 支持动态归属计划配置：
+ * - vestingYear: 归属年限（1-5年）
+ * - cliffPeriod: 悬崖期月数（0/6/12/18/24）
+ * - vestingFrequency: 归属频率（MONTHLY / YEARLY）
  */
-
-export type VestingScheduleType = 
-  | '4_YEAR_1_YEAR_CLIFF'
-  | '4_YEAR_MONTHLY'
-  | '3_YEAR_1_YEAR_CLIFF'
-  | 'IMMEDIATE'
 
 export interface VestingEvent {
   date: Date
@@ -22,7 +15,7 @@ export interface VestingEvent {
 }
 
 export interface VestingSchedule {
-  type: VestingScheduleType
+  type: string
   totalQuantity: number
   vestingStartDate: Date
   events: VestingEvent[]
@@ -30,35 +23,49 @@ export interface VestingSchedule {
 
 /**
  * 计算归属计划
+ *
+ * @param totalQuantity 总授予数量
+ * @param vestingStartDate 归属开始日期
+ * @param vestingYear 归属年限（年）
+ * @param cliffPeriod 悬崖期月数（0/6/12/18/24）
+ * @param vestingFrequency 归属频率（MONTHLY / YEARLY）
  */
 export function calculateVestingSchedule(
   totalQuantity: number,
   vestingStartDate: Date,
-  scheduleType: VestingScheduleType
+  vestingYear: number,
+  cliffPeriod: number,
+  vestingFrequency: string
 ): VestingSchedule {
   const events: VestingEvent[] = []
-  
-  switch (scheduleType) {
-    case '4_YEAR_1_YEAR_CLIFF':
-      // 1年悬崖：满1年归属25%，之后每月归属剩余的1/36
-      const cliffQuantity = Math.floor(totalQuantity * 0.25)
-      const monthlyQuantity = Math.floor((totalQuantity - cliffQuantity) / 36)
-      const remainder = totalQuantity - cliffQuantity - monthlyQuantity * 36
-      
-      // 悬崖事件（1年后）
-      const cliffDate = addYears(vestingStartDate, 1)
-      events.push({
-        date: cliffDate,
-        quantity: cliffQuantity,
-        cumulativeQuantity: cliffQuantity,
-        isCliff: true,
-      })
-      
-      // 之后每月归属
+  const totalMonths = vestingYear * 12
+
+  if (cliffPeriod > 0) {
+    // 有悬崖期的情况
+    // cliff 部分数量 = 总数量 * cliff月数 / 总月数
+    const cliffQuantity = Math.floor(totalQuantity * cliffPeriod / totalMonths)
+    const remainingQuantity = totalQuantity - cliffQuantity
+    const remainingMonths = totalMonths - cliffPeriod
+
+    // cliff 事件
+    const cliffDate = addMonths(vestingStartDate, cliffPeriod)
+    events.push({
+      date: cliffDate,
+      quantity: cliffQuantity,
+      cumulativeQuantity: cliffQuantity,
+      isCliff: true,
+    })
+
+    // 剩余部分按频率分配
+    if (vestingFrequency === 'MONTHLY') {
+      // 按月分配
+      const monthlyQuantity = Math.floor(remainingQuantity / remainingMonths)
+      const remainder = remainingQuantity - monthlyQuantity * remainingMonths
+
       let cumulative = cliffQuantity
-      for (let month = 1; month <= 36; month++) {
+      for (let month = 1; month <= remainingMonths; month++) {
         const vestDate = addMonths(cliffDate, month)
-        const qty = month === 36 ? monthlyQuantity + remainder : monthlyQuantity
+        const qty = month === remainingMonths ? monthlyQuantity + remainder : monthlyQuantity
         cumulative += qty
         events.push({
           date: vestDate,
@@ -67,68 +74,66 @@ export function calculateVestingSchedule(
           isCliff: false,
         })
       }
-      break
-      
-    case '4_YEAR_MONTHLY':
-      // 无悬崖，每月归属 1/48
-      const monthlyQty = Math.floor(totalQuantity / 48)
-      const rem = totalQuantity - monthlyQty * 48
-      
-      let cum = 0
-      for (let month = 1; month <= 48; month++) {
+    } else if (vestingFrequency === 'YEARLY') {
+      // 按年分配
+      const remainingYears = Math.floor(remainingMonths / 12)
+      const yearlyQuantity = Math.floor(remainingQuantity / remainingYears)
+      const remainder = remainingQuantity - yearlyQuantity * remainingYears
+
+      let cumulative = cliffQuantity
+      for (let year = 1; year <= remainingYears; year++) {
+        const vestDate = addMonths(cliffDate, year * 12)
+        const qty = year === remainingYears ? yearlyQuantity + remainder : yearlyQuantity
+        cumulative += qty
+        events.push({
+          date: vestDate,
+          quantity: qty,
+          cumulativeQuantity: cumulative,
+          isCliff: false,
+        })
+      }
+    }
+  } else {
+    // 无悬崖期的情况
+    if (vestingFrequency === 'MONTHLY') {
+      // 按月分配
+      const monthlyQuantity = Math.floor(totalQuantity / totalMonths)
+      const remainder = totalQuantity - monthlyQuantity * totalMonths
+
+      let cumulative = 0
+      for (let month = 1; month <= totalMonths; month++) {
         const vestDate = addMonths(vestingStartDate, month)
-        const qty = month === 48 ? monthlyQty + rem : monthlyQty
-        cum += qty
+        const qty = month === totalMonths ? monthlyQuantity + remainder : monthlyQuantity
+        cumulative += qty
         events.push({
           date: vestDate,
           quantity: qty,
-          cumulativeQuantity: cum,
+          cumulativeQuantity: cumulative,
           isCliff: false,
         })
       }
-      break
-      
-    case '3_YEAR_1_YEAR_CLIFF':
-      // 3年归属 + 1年悬崖
-      const cliffQty3 = Math.floor(totalQuantity * 0.33)
-      const monthlyQty3 = Math.floor((totalQuantity - cliffQty3) / 24)
-      const rem3 = totalQuantity - cliffQty3 - monthlyQty3 * 24
-      
-      const cliffDate3 = addYears(vestingStartDate, 1)
-      events.push({
-        date: cliffDate3,
-        quantity: cliffQty3,
-        cumulativeQuantity: cliffQty3,
-        isCliff: true,
-      })
-      
-      let cum3 = cliffQty3
-      for (let month = 1; month <= 24; month++) {
-        const vestDate = addMonths(cliffDate3, month)
-        const qty = month === 24 ? monthlyQty3 + rem3 : monthlyQty3
-        cum3 += qty
+    } else if (vestingFrequency === 'YEARLY') {
+      // 按年分配
+      const yearlyQuantity = Math.floor(totalQuantity / vestingYear)
+      const remainder = totalQuantity - yearlyQuantity * vestingYear
+
+      let cumulative = 0
+      for (let year = 1; year <= vestingYear; year++) {
+        const vestDate = addMonths(vestingStartDate, year * 12)
+        const qty = year === vestingYear ? yearlyQuantity + remainder : yearlyQuantity
+        cumulative += qty
         events.push({
           date: vestDate,
           quantity: qty,
-          cumulativeQuantity: cum3,
+          cumulativeQuantity: cumulative,
           isCliff: false,
         })
       }
-      break
-      
-    case 'IMMEDIATE':
-      // 一次性归属
-      events.push({
-        date: vestingStartDate,
-        quantity: totalQuantity,
-        cumulativeQuantity: totalQuantity,
-        isCliff: true,
-      })
-      break
+    }
   }
-  
+
   return {
-    type: scheduleType,
+    type: `${vestingYear}年${cliffPeriod > 0 ? `+${cliffPeriod}月悬崖` : '无悬崖'}-${vestingFrequency === 'MONTHLY' ? '按月' : '按年'}`,
     totalQuantity,
     vestingStartDate,
     events,
@@ -171,12 +176,6 @@ export function getUnvestedQuantity(schedule: VestingSchedule, asOfDate: Date = 
 }
 
 // 辅助函数
-function addYears(date: Date, years: number): Date {
-  const result = new Date(date)
-  result.setFullYear(result.getFullYear() + years)
-  return result
-}
-
 function addMonths(date: Date, months: number): Date {
   const result = new Date(date)
   result.setMonth(result.getMonth() + months)

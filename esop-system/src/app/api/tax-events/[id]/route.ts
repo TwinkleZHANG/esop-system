@@ -42,8 +42,7 @@ export async function PUT(
         taxableAmount: body.taxableAmount,
         taxAmount: body.taxAmount,
         status: body.status,
-        exportFileUrl: body.exportFileUrl,
-        importFileUrl: body.importFileUrl,
+        receiptFileUrl: body.receiptFileUrl,
       },
       include: {
         grant: {

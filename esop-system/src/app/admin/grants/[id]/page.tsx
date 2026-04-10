@@ -84,11 +84,9 @@ const taxEventTypeLabels: Record<TaxEventType, string> = {
 }
 
 const taxEventStatusLabels: Record<TaxEventStatus, string> = {
-  TRIGGERED: '已触发',
-  DATA_EXPORTED: '数据已导出',
-  DATA_IMPORTED: '数据已导入',
-  TAX_CONFIRMED: '税务已确认',
-  TAX_PAID: '税款已缴纳',
+  PENDING: '待缴款',
+  PAID: '已上传凭证',
+  CONFIRMED: '已确认',
 }
 
 export default function GrantDetailPage() {
@@ -105,6 +103,7 @@ export default function GrantDetailPage() {
   const [targetStatus, setTargetStatus] = useState<GrantStatus | ''>('')
   const [statusDocument, setStatusDocument] = useState('')
   const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [regenerating, setRegenerating] = useState(false)
 
   useEffect(() => {
     async function fetchGrant() {
@@ -441,7 +440,34 @@ export default function GrantDetailPage() {
               </p>
             </div>
           ) : grant.vestingEvents.length === 0 ? (
-            <p className="text-gray-500">暂无归属事件</p>
+            <div className="space-y-3">
+              <p className="text-gray-500">暂无归属事件</p>
+              {(grant.status === 'GRANTED' || grant.status === 'VESTING') && grant.vestingYear && grant.vestingFrequency && (
+                <button
+                  onClick={async () => {
+                    setRegenerating(true)
+                    try {
+                      const res = await fetch(`/api/grants/${grant.id}/vesting`, { method: 'POST' })
+                      if (res.ok) {
+                        alert('归属计划已重新生成！')
+                        window.location.reload()
+                      } else {
+                        const error = await res.json()
+                        alert('生成失败：' + (error.error || '未知错误'))
+                      }
+                    } catch {
+                      alert('生成失败')
+                    } finally {
+                      setRegenerating(false)
+                    }
+                  }}
+                  disabled={regenerating}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 text-sm"
+                >
+                  {regenerating ? '生成中...' : '重新生成归属计划'}
+                </button>
+              )}
+            </div>
           ) : (
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">

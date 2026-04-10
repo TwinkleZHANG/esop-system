@@ -12,8 +12,7 @@ interface TaxEvent {
   taxableAmount: string | null
   taxAmount: string | null
   status: TaxEventStatus
-  exportFileUrl: string | null
-  importFileUrl: string | null
+  receiptFileUrl: string | null
   grant?: { id: string; employee?: { name: string } }
 }
 
@@ -44,11 +43,9 @@ export default function TaxEventsPage() {
   }
 
   const statusLabels: Record<TaxEventStatus, string> = {
-    TRIGGERED: '已触发',
-    DATA_EXPORTED: '数据已导出',
-    DATA_IMPORTED: '数据已导入',
-    TAX_CONFIRMED: '税务已确认',
-    TAX_PAID: '税务已缴纳',
+    PENDING: '待缴款',
+    PAID: '已上传凭证',
+    CONFIRMED: '已确认',
   }
 
   if (loading) {
@@ -75,11 +72,9 @@ export default function TaxEventsPage() {
           </select>
           <select className="border border-gray-300 rounded-lg px-3 py-2 text-sm">
             <option value="">全部状态</option>
-            <option value="TRIGGERED">已触发</option>
-            <option value="DATA_EXPORTED">数据已导出</option>
-            <option value="DATA_IMPORTED">数据已导入</option>
-            <option value="TAX_CONFIRMED">税务已确认</option>
-            <option value="TAX_PAID">税务已缴纳</option>
+            <option value="PENDING">待缴款</option>
+            <option value="PAID">已上传凭证</option>
+            <option value="CONFIRMED">已确认</option>
           </select>
         </div>
       </div>

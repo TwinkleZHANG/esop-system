@@ -20,13 +20,14 @@ interface AssetPosition {
   employeeId: string
   holdingEntityId: string | null
   assetType: AssetType
+  quantity: string
   currency: string
-  avgCost: string | null
   status: AccountStatus
   employee?: { name: string; employeeId: string }
   holdingEntity?: { name: string }
   transactions: AssetTransaction[]
-  totalBalance: number
+  latestFmv: number
+  currentValue: number
 }
 
 const typeLabels: Record<AssetType, string> = {
@@ -198,15 +199,15 @@ export default function AssetDetailPage() {
             </p>
           </div>
           <div>
-            <p className="text-sm text-gray-500">当前余额</p>
+            <p className="text-sm text-gray-500">持有股数</p>
             <p className="text-base font-medium text-gray-900">
-              {position.totalBalance.toLocaleString()}
+              {Number(position.quantity).toLocaleString()}
             </p>
           </div>
           <div>
-            <p className="text-sm text-gray-500">平均成本</p>
+            <p className="text-sm text-gray-500">当前市值</p>
             <p className="text-base font-medium text-gray-900">
-              {position.avgCost || '-'}
+              ¥{position.currentValue.toLocaleString()}
             </p>
           </div>
           <div>

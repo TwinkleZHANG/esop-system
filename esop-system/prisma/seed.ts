@@ -3,6 +3,125 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
 import 'dotenv/config'
 
+// Helper functions
+function addMonths(date: Date, months: number): Date {
+  const result = new Date(date)
+  result.setMonth(result.getMonth() + months)
+  return result
+}
+
+function calcVestingEndDate(startDate: Date, vestingYear: number): Date {
+  const end = new Date(startDate)
+  end.setFullYear(end.getFullYear() + vestingYear)
+  return end
+}
+
+function calculateVestingSchedule(
+  totalQuantity: number,
+  vestingStartDate: Date,
+  vestingYear: number,
+  cliffPeriod: number,
+  vestingFrequency: string
+) {
+  const events: Array<{
+    date: Date
+    quantity: number
+    cumulativeQuantity: number
+    isCliff: boolean
+  }> = []
+  const totalMonths = vestingYear * 12
+
+  if (cliffPeriod > 0) {
+    const cliffQuantity = Math.floor(totalQuantity * cliffPeriod / totalMonths)
+    const remainingQuantity = totalQuantity - cliffQuantity
+    const remainingMonths = totalMonths - cliffPeriod
+
+    const cliffDate = addMonths(vestingStartDate, cliffPeriod)
+    events.push({
+      date: cliffDate,
+      quantity: cliffQuantity,
+      cumulativeQuantity: cliffQuantity,
+      isCliff: true,
+    })
+
+    if (vestingFrequency === 'MONTHLY') {
+      const monthlyQuantity = Math.floor(remainingQuantity / remainingMonths)
+      const remainder = remainingQuantity - monthlyQuantity * remainingMonths
+
+      let cumulative = cliffQuantity
+      for (let month = 1; month <= remainingMonths; month++) {
+        const vestDate = addMonths(cliffDate, month)
+        const qty = month === remainingMonths ? monthlyQuantity + remainder : monthlyQuantity
+        cumulative += qty
+        events.push({
+          date: vestDate,
+          quantity: qty,
+          cumulativeQuantity: cumulative,
+          isCliff: false,
+        })
+      }
+    } else if (vestingFrequency === 'YEARLY') {
+      const remainingYears = Math.floor(remainingMonths / 12)
+      const yearlyQuantity = Math.floor(remainingQuantity / remainingYears)
+      const remainder = remainingQuantity - yearlyQuantity * remainingYears
+
+      let cumulative = cliffQuantity
+      for (let year = 1; year <= remainingYears; year++) {
+        const vestDate = addMonths(cliffDate, year * 12)
+        const qty = year === remainingYears ? yearlyQuantity + remainder : yearlyQuantity
+        cumulative += qty
+        events.push({
+          date: vestDate,
+          quantity: qty,
+          cumulativeQuantity: cumulative,
+          isCliff: false,
+        })
+      }
+    }
+  } else {
+    if (vestingFrequency === 'MONTHLY') {
+      const monthlyQuantity = Math.floor(totalQuantity / totalMonths)
+      const remainder = totalQuantity - monthlyQuantity * totalMonths
+
+      let cumulative = 0
+      for (let month = 1; month <= totalMonths; month++) {
+        const vestDate = addMonths(vestingStartDate, month)
+        const qty = month === totalMonths ? monthlyQuantity + remainder : monthlyQuantity
+        cumulative += qty
+        events.push({
+          date: vestDate,
+          quantity: qty,
+          cumulativeQuantity: cumulative,
+          isCliff: false,
+        })
+      }
+    } else if (vestingFrequency === 'YEARLY') {
+      const yearlyQuantity = Math.floor(totalQuantity / vestingYear)
+      const remainder = totalQuantity - yearlyQuantity * vestingYear
+
+      let cumulative = 0
+      for (let year = 1; year <= vestingYear; year++) {
+        const vestDate = addMonths(vestingStartDate, year * 12)
+        const qty = year === vestingYear ? yearlyQuantity + remainder : yearlyQuantity
+        cumulative += qty
+        events.push({
+          date: vestDate,
+          quantity: qty,
+          cumulativeQuantity: cumulative,
+          isCliff: false,
+        })
+      }
+    }
+  }
+
+  return {
+    type: `${vestingYear}年${cliffPeriod > 0 ? `+${cliffPeriod}月悬崖` : '无悬崖'}-${vestingFrequency === 'MONTHLY' ? '按月' : '按年'}`,
+    totalQuantity,
+    vestingStartDate,
+    events,
+  }
+}
+
 const connectionString = process.env.DATABASE_URL!
 
 const pool = new Pool({ connectionString })
@@ -12,9 +131,10 @@ const prisma = new PrismaClient({ adapter })
 async function main() {
   console.log('🌱 开始填充示例数据...')
 
-  // 清理现有数据
+  // 清理现有数据（注意顺序：先删子表，再删父表）
   await prisma.assetTransaction.deleteMany()
   await prisma.assetPosition.deleteMany()
+  await prisma.application.deleteMany()
   await prisma.vestingEvent.deleteMany()
   await prisma.taxEvent.deleteMany()
   await prisma.grant.deleteMany()
@@ -223,7 +343,7 @@ async function main() {
       quantity: 15000,
       taxableAmount: 82500, // 15000 * (10.5 - 5.0)
       taxAmount: 20625,
-      status: 'TRIGGERED',
+      status: 'PENDING',
     },
   })
   console.log('✅ 创建授予 (VESTED):', grant3.id.slice(-6))
@@ -257,10 +377,70 @@ async function main() {
       quantity: 8000,
       taxableAmount: 84000,
       taxAmount: 16800,
-      status: 'TAX_PAID',
+      status: 'CONFIRMED',
     },
   })
   console.log('✅ 创建授予 (SETTLED):', grant4.id.slice(-6))
+
+  // Grant 5：GRANTED，归属开始日期已过，等待cron触发→VESTING
+  const grant5VestingStart = new Date('2025-01-01')
+  const grant5VestingYear = 4
+  const grant5 = await prisma.grant.create({
+    data: {
+      planId: plan1.id,
+      employeeId: employees[1].id,
+      quantity: 12000,
+      grantDate: new Date('2025-01-01'),
+      vestingStartDate: grant5VestingStart,
+      vestingEndDate: calcVestingEndDate(grant5VestingStart, grant5VestingYear),
+      vestingYear: grant5VestingYear,
+      cliffPeriod: 12,
+      vestingFrequency: 'MONTHLY',
+      type: 'RSU',
+      status: 'GRANTED',
+    }
+  })
+  const schedule5 = calculateVestingSchedule(12000, new Date('2025-01-01'), 4, 12, 'MONTHLY')
+  await prisma.vestingEvent.createMany({
+    data: schedule5.events.map(event => ({
+      grantId: grant5.id,
+      vestDate: event.date,
+      quantity: event.quantity,
+      cumulativeQty: event.cumulativeQuantity,
+      status: 'PENDING',
+    }))
+  })
+  console.log('✅ 创建授予 (GRANTED，含归属计划):', grant5.id.slice(-6))
+
+  // Grant 6：VESTING，归属结束日期已过，等待cron触发→VESTED
+  const grant6VestingStart = new Date('2023-01-01')
+  const grant6VestingYear = 2
+  const grant6 = await prisma.grant.create({
+    data: {
+      planId: plan1.id,
+      employeeId: employees[2].id,
+      quantity: 5000,
+      grantDate: new Date('2023-01-01'),
+      vestingStartDate: grant6VestingStart,
+      vestingEndDate: calcVestingEndDate(grant6VestingStart, grant6VestingYear),
+      vestingYear: grant6VestingYear,
+      cliffPeriod: 0,
+      vestingFrequency: 'MONTHLY',
+      type: 'RSU',
+      status: 'VESTING',
+    }
+  })
+  const schedule6 = calculateVestingSchedule(5000, new Date('2023-01-01'), 2, 0, 'MONTHLY')
+  await prisma.vestingEvent.createMany({
+    data: schedule6.events.map(event => ({
+      grantId: grant6.id,
+      vestDate: event.date,
+      quantity: event.quantity,
+      cumulativeQty: event.cumulativeQuantity,
+      status: event.date <= new Date() ? 'VESTED' : 'PENDING',
+    }))
+  })
+  console.log('✅ 创建授予 (VESTING，含归属计划):', grant6.id.slice(-6))
 
   // 资产持仓示例数据
   const assetPosition1 = await prisma.assetPosition.create({
@@ -314,7 +494,7 @@ async function main() {
   console.log('✅ 创建资产账户 ACC-002 (王五, 15000股)')
 
   console.log('🎉 示例数据填充完成！')
-  console.log('📊 授予状态分布: DRAFT=1, VESTING=1, VESTED=1, SETTLED=1')
+  console.log('📊 授予状态分布: DRAFT=1, VESTING=2, GRANTED=1, VESTED=1, SETTLED=1')
 }
 
 main()

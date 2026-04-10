@@ -1,18 +1,25 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/db/prisma'
-import { ApplicationType, GrantStatus, AssetType, AssetTxType } from '@prisma/client'
+import { ApplicationType, GrantStatus, AssetType, AssetTxType, PlanType } from '@prisma/client'
 
 /**
- * 根据申请类型获取目标状态
+ * 根据申请类型和计划类型，获取全部处理完毕后的目标状态
+ * LP/虚拟股权：转让/分红/赎回不改变状态（保持 VESTED，可多次操作）
+ * RSU：交割后 SETTLED
+ * Option：行权后 EXERCISED，交割后 SETTLED
  */
-function getTargetStatus(type: ApplicationType): GrantStatus | null {
-  const statusMap: Record<ApplicationType, GrantStatus | null> = {
+function getTargetStatus(appType: ApplicationType, planType: PlanType): GrantStatus | null {
+  if (planType === 'LP_SHARE' || planType === 'VIRTUAL_SHARE') {
+    // LP/虚拟股权在 VESTED 后可多次转让/分红/赎回，不改变 grant 状态
+    return null
+  }
+  const statusMap: Record<ApplicationType, GrantStatus> = {
     EXERCISE: 'EXERCISED',
     TRANSFER: 'SETTLED',
     DIVIDEND: 'SETTLED',
     REDEEM: 'SETTLED',
   }
-  return statusMap[type]
+  return statusMap[appType]
 }
 
 /**
@@ -26,6 +33,33 @@ function getAssetType(planType: string): AssetType {
     VIRTUAL_SHARE: 'VIRTUAL_SHARE',
   }
   return typeMap[planType] || 'COMMON_SHARE'
+}
+
+/**
+ * 判断该审批是否需要触发税务事件
+ *
+ * 规则：
+ * - RSU：税务在 cron 归属时已自动触发，审批时不再创建
+ * - Option：行权(EXERCISE)审批时触发 EXERCISE_TAX
+ * - LP/虚拟股权：转让/分红/赎回审批时触发 VESTING_TAX
+ */
+function shouldCreateTaxEvent(planType: PlanType, appType: ApplicationType): { create: boolean; eventType?: 'EXERCISE_TAX' | 'VESTING_TAX' } {
+  switch (planType) {
+    case 'RSU':
+      // RSU 税务已在归属时由 cron 创建
+      return { create: false }
+    case 'OPTION':
+      if (appType === 'EXERCISE') {
+        return { create: true, eventType: 'EXERCISE_TAX' }
+      }
+      return { create: false }
+    case 'LP_SHARE':
+    case 'VIRTUAL_SHARE':
+      // 转让/分红/赎回都触发税务事件
+      return { create: true, eventType: 'VESTING_TAX' }
+    default:
+      return { create: false }
+  }
 }
 
 /**
@@ -80,16 +114,9 @@ export async function POST(
       )
     }
 
-    const targetStatus = getTargetStatus(application.type)
-    if (!targetStatus) {
-      return NextResponse.json(
-        { error: 'Invalid application type' },
-        { status: 400 }
-      )
-    }
-
     const oldStatus = application.grant.status
     const { grant, employeeId, type, quantity, price } = application
+    const planType = grant.plan.type
 
     // 计算新的已处理数量
     const processedQty = grant.processedQty ? parseFloat(grant.processedQty.toString()) : 0
@@ -97,9 +124,11 @@ export async function POST(
     const newProcessedQty = processedQty + requestedQty
     const totalQty = parseFloat(grant.quantity.toString())
 
-    // 确定是否全部处理完毕
+    // 确定是否全部处理完毕以及目标状态
     const isFullyProcessed = newProcessedQty >= totalQty
-    const newStatus = isFullyProcessed ? targetStatus : grant.status
+    const targetStatus = getTargetStatus(type, planType)
+    // 仅在全部处理完毕且有目标状态时变更（LP/虚拟股权不变更）
+    const newStatus = (isFullyProcessed && targetStatus) ? targetStatus : grant.status
 
     // 使用事务执行所有操作
     const result = await prisma.$transaction(async (tx) => {
@@ -142,16 +171,33 @@ export async function POST(
         },
       })
 
-      // 4. 创建税务事件
-      const taxEvent = await tx.taxEvent.create({
-        data: {
-          grantId: grant.id,
-          eventType: type === 'EXERCISE' ? 'EXERCISE_TAX' : 'VESTING_TAX',
-          triggerDate: new Date(),
-          quantity,
-          status: 'TRIGGERED',
-        },
-      })
+      // 4. 按规则创建税务事件（RSU 不创建，已在归属时触发）
+      const taxRule = shouldCreateTaxEvent(planType, type)
+      let taxEvent = null
+      if (taxRule.create && taxRule.eventType) {
+        // 获取最新 FMV 用于计算应税金额
+        const latestValuation = await tx.valuation.findFirst({
+          orderBy: { date: 'desc' },
+        })
+        const fmv = latestValuation ? Number(latestValuation.fmv) : 0
+        const strikePrice = grant.strikePrice ? Number(grant.strikePrice) : 0
+        // Option 行权：应税金额 = 数量 * (FMV - 行权价)
+        // LP/虚拟股权：应税金额 = 数量 * FMV
+        const taxableAmount = taxRule.eventType === 'EXERCISE_TAX'
+          ? requestedQty * (fmv - strikePrice)
+          : requestedQty * fmv
+
+        taxEvent = await tx.taxEvent.create({
+          data: {
+            grantId: grant.id,
+            eventType: taxRule.eventType,
+            triggerDate: new Date(),
+            quantity,
+            taxableAmount: taxableAmount > 0 ? taxableAmount : 0,
+            status: 'PENDING',
+          },
+        })
+      }
 
       // 5. 查找或创建资产持仓
       let assetPosition = await tx.assetPosition.findFirst({
@@ -198,7 +244,7 @@ export async function POST(
           balanceAfter: currentBalance,
           tradeDate: new Date(),
           relatedGrantId: grant.id,
-          relatedTaxEventId: taxEvent.id,
+          relatedTaxEventId: taxEvent?.id || null,
         },
       })
 

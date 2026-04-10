@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useUserRole } from '@/components/RoleSwitcher'
 import { PlanType, Jurisdiction, PlanStatus } from '@prisma/client'
 
 interface Plan {
@@ -14,6 +15,7 @@ interface Plan {
 }
 
 export default function PlansPage() {
+  const role = useUserRole()
   const [plans, setPlans] = useState<Plan[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -65,12 +67,11 @@ export default function PlansPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">激励计划</h1>
-        <a 
-          href="/admin/plans/new"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          + 新建计划
-        </a>
+        {role === 'ADMIN_CREATE' && (
+          <a href="/admin/plans/new" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            + 新建计划
+          </a>
+        )}
       </div>
       
       {/* 筛选器 */}

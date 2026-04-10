@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { useUserRole, ROLE_INFO, type UserRole } from '@/components/RoleSwitcher'
 
 const MENU_ITEMS = [
@@ -20,6 +21,7 @@ export default function AdminLayout({
   children: React.ReactNode
 }) {
   const role = useUserRole()
+  const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -59,13 +61,13 @@ export default function AdminLayout({
         </div>
         
         <nav className="space-y-1">
-          {visibleMenus.map((item, index) => (
-            <a 
+          {visibleMenus.map((item) => (
+            <a
               key={item.key}
-              href={item.href} 
+              href={item.href}
               className={`block px-4 py-2 rounded-lg ${
-                index === 0 
-                  ? 'bg-blue-50 text-blue-700 font-medium' 
+                pathname === item.href
+                  ? 'bg-blue-50 text-blue-700 font-medium'
                   : 'text-gray-600 hover:bg-gray-50'
               }`}
             >

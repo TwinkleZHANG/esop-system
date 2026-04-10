@@ -401,14 +401,37 @@ export default function NewGrantPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 归属开始日期
               </label>
-              <input
-                type="date"
-                value={formData.vestingStartDate}
-                onChange={(e) =>
-                  setFormData({ ...formData, vestingStartDate: e.target.value })
-                }
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+              {formData.vestingStartDate ? (
+                <div className="flex gap-2">
+                  <input
+                    type="date"
+                    value={formData.vestingStartDate}
+                    onChange={(e) =>
+                      setFormData({ ...formData, vestingStartDate: e.target.value || '' })
+                    }
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, vestingStartDate: '' })}
+                    className="px-3 py-2 text-sm text-gray-500 hover:text-red-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    title="清除，使用授予日期"
+                  >
+                    清除
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const defaultDate = formData.grantDate || new Date().toISOString().slice(0, 10)
+                    setFormData({ ...formData, vestingStartDate: defaultDate })
+                  }}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-left text-gray-400 hover:border-gray-400"
+                >
+                  点击选择日期
+                </button>
+              )}
               <p className="text-xs text-gray-500 mt-1">
                 留空则等于授予日期
               </p>

@@ -95,6 +95,9 @@ model Grant {
   grantDate        DateTime
   vestingStartDate DateTime
   vestingEndDate   DateTime?
+  vestingYear      Int?
+  cliffPeriod      Int?           @default(0)
+  vestingFrequency String?
   status           GrantStatus    @default(DRAFT)
   type             PlanType
   processedQty     Decimal        @default(0) @db.Decimal(20, 4) // 已处理数量（行权/转让/赎回）
@@ -132,9 +135,8 @@ model TaxEvent {
   quantity      Decimal        @db.Decimal(20, 4)
   taxableAmount Decimal?       @db.Decimal(20, 4)
   taxAmount     Decimal?       @db.Decimal(20, 4)
-  status        TaxEventStatus @default(TRIGGERED)
-  exportFileUrl String?
-  importFileUrl String?
+  status        TaxEventStatus @default(PENDING)
+  receiptFileUrl String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   grant         Grant          @relation(fields: [grantId], references: [id])
@@ -278,11 +280,9 @@ enum TaxEventType {
 }
 
 enum TaxEventStatus {
-  TRIGGERED
-  DATA_EXPORTED
-  DATA_IMPORTED
-  TAX_CONFIRMED
-  TAX_PAID
+  PENDING
+  PAID
+  CONFIRMED
 }
 
 enum AssetType {

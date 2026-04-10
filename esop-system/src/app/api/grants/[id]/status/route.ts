@@ -47,48 +47,53 @@ export async function PUT(
       )
     }
 
-    // 更新授予状态
-    const updatedGrant = await prisma.grant.update({
-      where: { id },
-      data: {
-        status: newStatus as GrantStatus,
-      },
-    })
-
-    // 流转到"已授予"时，根据当前参数正式生成归属事件
-    if (newStatus === 'GRANTED' && grant.vestingYear && grant.vestingFrequency) {
-      // 先清除可能存在的旧归属事件
-      await prisma.vestingEvent.deleteMany({ where: { grantId: id } })
-
-      const schedule = calculateVestingSchedule(
-        Number(grant.quantity),
-        new Date(grant.vestingStartDate),
-        grant.vestingYear,
-        grant.cliffPeriod ?? 0,
-        grant.vestingFrequency
-      )
-      await prisma.vestingEvent.createMany({
-        data: schedule.events.map((event) => ({
-          grantId: id,
-          vestDate: event.date,
-          quantity: event.quantity,
-          cumulativeQty: event.cumulativeQuantity,
-          status: 'PENDING',
-        })),
+    // 使用事务确保状态更新、归属事件生成、审计日志是原子操作
+    const updatedGrant = await prisma.$transaction(async (tx) => {
+      // 更新授予状态
+      const updated = await tx.grant.update({
+        where: { id },
+        data: {
+          status: newStatus as GrantStatus,
+        },
       })
-    }
 
-    // 记录状态变更日志
-    await prisma.auditLog.create({
-      data: {
-        entityType: 'Grant',
-        entityId: id,
-        action: 'STATUS_CHANGE',
-        oldValue: { status: currentStatus },
-        newValue: { status: newStatus, document },
-        operatorId: operator || 'system',
-        operatorRole: 'ADMIN',
-      },
+      // 流转到"已授予"时，根据当前参数正式生成归属事件
+      if (newStatus === 'GRANTED' && grant.vestingYear && grant.vestingFrequency) {
+        // 先清除可能存在的旧归属事件
+        await tx.vestingEvent.deleteMany({ where: { grantId: id } })
+
+        const schedule = calculateVestingSchedule(
+          Number(grant.quantity),
+          new Date(grant.vestingStartDate),
+          grant.vestingYear,
+          grant.cliffPeriod ?? 0,
+          grant.vestingFrequency
+        )
+        await tx.vestingEvent.createMany({
+          data: schedule.events.map((event) => ({
+            grantId: id,
+            vestDate: event.date,
+            quantity: event.quantity,
+            cumulativeQty: event.cumulativeQuantity,
+            status: 'PENDING',
+          })),
+        })
+      }
+
+      // 记录状态变更日志
+      await tx.auditLog.create({
+        data: {
+          entityType: 'Grant',
+          entityId: id,
+          action: 'STATUS_CHANGE',
+          oldValue: { status: currentStatus },
+          newValue: { status: newStatus, document },
+          operatorId: operator || 'system',
+          operatorRole: 'ADMIN',
+        },
+      })
+
+      return updated
     })
 
     return NextResponse.json(updatedGrant)

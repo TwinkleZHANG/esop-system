@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ApplicationType, GrantStatus, PlanType, ApplicationStatus } from '@prisma/client'
+import { ApplicationType, GrantStatus, PlanType, ApplicationStatus, TaxEventStatus } from '@prisma/client'
 
 // 状态标签映射
 const statusLabels: Record<GrantStatus, string> = {
@@ -52,6 +52,18 @@ const planTypeLabels: Record<PlanType, string> = {
   OPTION: '期权',
   VIRTUAL_SHARE: '虚拟股权',
   LP_SHARE: 'LP份额',
+}
+
+const taxEventStatusLabels: Record<TaxEventStatus, string> = {
+  PENDING: '待缴款',
+  PAID: '已上传凭证',
+  CONFIRMED: '已确认',
+}
+
+const taxEventStatusColors: Record<TaxEventStatus, string> = {
+  PENDING: 'bg-yellow-100 text-yellow-800',
+  PAID: 'bg-blue-100 text-blue-800',
+  CONFIRMED: 'bg-green-100 text-green-800',
 }
 
 interface Employee {
@@ -110,6 +122,7 @@ interface TaxEvent {
   taxableAmount: string | null
   taxAmount: string | null
   status: string
+  receiptFileUrl: string | null
   grant: {
     plan: {
       title: string
@@ -134,6 +147,9 @@ export default function EmployeePage() {
     remark: '',
   })
   const [submitting, setSubmitting] = useState(false)
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [uploadingTaxEventId, setUploadingTaxEventId] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
 
   // 获取员工数据
   useEffect(() => {
@@ -227,6 +243,35 @@ export default function EmployeePage() {
       alert('提交失败')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  // 上传缴款凭证
+  const handleUploadReceipt = async (file: File) => {
+    if (!uploadingTaxEventId) return
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch(`/api/tax-events/${uploadingTaxEventId}/upload`, {
+        method: 'POST',
+        body: formData,
+      })
+      if (res.ok) {
+        alert('上传成功！')
+        setShowUploadModal(false)
+        setUploadingTaxEventId(null)
+        // 刷新税务记录
+        const taxRes = await fetch(`/api/employee/tax-events?employeeId=${WANG_WU_EMP_ID}`)
+        if (taxRes.ok) setTaxEvents(await taxRes.json())
+      } else {
+        const error = await res.json()
+        alert(error.error || '上传失败')
+      }
+    } catch {
+      alert('上传失败')
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -464,6 +509,7 @@ export default function EmployeePage() {
                   <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">数量</th>
                   <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">应税金额</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">状态</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -483,13 +529,28 @@ export default function EmployeePage() {
                       {event.taxableAmount ? `¥${parseFloat(event.taxableAmount).toLocaleString()}` : '-'}
                     </td>
                     <td className="py-3 px-4">
-                      <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                        {event.status === 'TRIGGERED'
-                          ? '已触发'
-                          : event.status === 'TAX_PAID'
-                            ? '已缴纳'
-                            : event.status}
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${taxEventStatusColors[event.status as TaxEventStatus]}`}>
+                        {taxEventStatusLabels[event.status as TaxEventStatus] || event.status}
                       </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      {event.status === 'PENDING' ? (
+                        <button
+                          onClick={() => {
+                            setUploadingTaxEventId(event.id)
+                            setShowUploadModal(true)
+                          }}
+                          className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          上传转账回单
+                        </button>
+                      ) : event.receiptFileUrl ? (
+                        <a href={event.receiptFileUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-500 hover:text-gray-700">
+                          查看凭证
+                        </a>
+                      ) : (
+                        <span className="text-sm text-gray-400">-</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -574,6 +635,40 @@ export default function EmployeePage() {
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
                   {submitting ? '提交中...' : '提交申请'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 上传凭证弹窗 */}
+      {showUploadModal && uploadingTaxEventId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md mx-4">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">上传缴款凭证</h3>
+              <p className="text-sm text-gray-500 mb-4">请上传转账回单（支持 JPG、PNG、GIF、WebP 图片或 PDF 文件，最大 10MB）</p>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleUploadReceipt(file)
+                }}
+                disabled={uploading}
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowUploadModal(false)
+                    setUploadingTaxEventId(null)
+                  }}
+                  disabled={uploading}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {uploading ? '上传中...' : '取消'}
                 </button>
               </div>
             </div>

@@ -142,6 +142,17 @@ export default function EmployeeDetailPage() {
     })
   }
 
+  const handleStartEdit = () => {
+    const validNames = entities.map(e => e.name)
+    setEditData({
+      ...employee,
+      employmentEntity: (employee.employmentEntity || []).filter(
+        name => validNames.includes(name)
+      )
+    })
+    setIsEditing(true)
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -180,7 +191,21 @@ export default function EmployeeDetailPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-500 mb-1">员工ID</label>
-            <p className="text-gray-900 font-mono">{employee.employeeId}</p>
+            {isEditing ? (
+              <div>
+                <input
+                  type="text"
+                  value={editData.employeeId}
+                  onChange={(e) => setEditData({ ...editData, employeeId: e.target.value })}
+                  className="border border-yellow-400 rounded-lg px-3 py-2 w-full font-mono"
+                />
+                <p className="text-xs text-yellow-600 mt-1">
+                  ⚠️ 修改员工ID将影响所有关联数据（授予记录、资产持仓等），请确认后再保存。
+                </p>
+              </div>
+            ) : (
+              <p className="text-gray-900 font-mono">{employee.employeeId}</p>
+            )}
           </div>
 
           <div>
@@ -368,7 +393,7 @@ export default function EmployeeDetailPage() {
             </>
           ) : (
             <button
-              onClick={() => setIsEditing(true)}
+              onClick={handleStartEdit}
               className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
             >
               编辑

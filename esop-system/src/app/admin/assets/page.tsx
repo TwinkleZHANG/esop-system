@@ -145,9 +145,6 @@ export default function AssetsPage() {
                 当前市值
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                平均成本
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 状态
               </th>
             </tr>
@@ -155,7 +152,7 @@ export default function AssetsPage() {
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredAssets.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                   暂无资产记录
                 </td>
               </tr>
@@ -184,11 +181,6 @@ export default function AssetsPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     ¥{asset.currentValue.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {asset.avgCost > 0
-                      ? `¥${asset.avgCost.toFixed(2)}/股`
-                      : '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
